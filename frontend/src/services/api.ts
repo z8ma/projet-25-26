@@ -100,4 +100,50 @@ export const professionalApi = {
     const response = await api.get('/api/professionals/professions');
     return response.data;
   },
+
+  addProfession: async (data: { professionId: string; isPrimary?: boolean }) => {
+    const response = await api.post('/api/professionals/professions', data);
+    return response.data;
+  },
+
+  removeProfession: async (id: string) => {
+    const response = await api.delete(`/api/professionals/professions/${id}`);
+    return response.data;
+  },
+
+  addSkill: async (data: { softwareName: string; proficiencyLevel?: string }) => {
+    const response = await api.post('/api/professionals/skills', data);
+    return response.data;
+  },
+
+  removeSkill: async (id: string) => {
+    const response = await api.delete(`/api/professionals/skills/${id}`);
+    return response.data;
+  },
+
+  addPortfolio: async (data: {
+    title: string;
+    description?: string;
+    imageUrl?: string;
+    projectType?: string;
+    tags?: string[];
+  }) => {
+    const response = await api.post('/api/professionals/portfolio', data);
+    return response.data;
+  },
+
+  removePortfolio: async (id: string) => {
+    const response = await api.delete(`/api/professionals/portfolio/${id}`);
+    return response.data;
+  },
+
+  getMessages: async () => {
+    const response = await api.get('/api/professionals/messages');
+    return response.data;
+  },
+
+  markMessageAsRead: async (id: string) => {
+    const response = await api.put(`/api/professionals/messages/${id}/read`);
+    return response.data;
+  },
 };

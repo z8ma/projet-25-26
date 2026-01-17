@@ -9,7 +9,25 @@ router.get('/professions', professionalController.getProfessions.bind(profession
 
 // Protected routes
 router.use(authMiddleware);
+
+// Profile
 router.get('/profile', professionalController.getProfile.bind(professionalController));
 router.put('/profile', professionalController.updateProfile.bind(professionalController));
+
+// Professions
+router.post('/professions', professionalController.addProfession.bind(professionalController));
+router.delete('/professions/:id', professionalController.removeProfession.bind(professionalController));
+
+// Skills
+router.post('/skills', professionalController.addSkill.bind(professionalController));
+router.delete('/skills/:id', professionalController.removeSkill.bind(professionalController));
+
+// Portfolio
+router.post('/portfolio', professionalController.addPortfolio.bind(professionalController));
+router.delete('/portfolio/:id', professionalController.removePortfolio.bind(professionalController));
+
+// Messages
+router.get('/messages', professionalController.getMessages.bind(professionalController));
+router.put('/messages/:id/read', professionalController.markMessageAsRead.bind(professionalController));
 
 export default router;
