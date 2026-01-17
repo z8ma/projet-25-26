@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import prisma from '../config/prisma.js';
 import { RegisterInput, LoginInput } from '../validators/auth.validator.js';
-
-const prisma = new PrismaClient();
 
 export class AuthService {
   // Register a new user
