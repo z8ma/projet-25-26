@@ -1,6 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
+import dotenv from 'dotenv';
+
+// Load environment variables FIRST
+dotenv.config();
+
+// Verify DATABASE_URL is loaded
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is not defined in environment variables');
+}
 
 // Create PostgreSQL connection pool
 const pool = new pg.Pool({
