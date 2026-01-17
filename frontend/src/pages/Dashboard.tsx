@@ -61,14 +61,25 @@ export default function Dashboard() {
               >
                 Compléter mon profil
               </Link>
+
+              {user.role === 'CREATOR' && (
+                <Link
+                  to="/brainstorming"
+                  className="block w-full text-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md transition-colors"
+                >
+                  Brainstorming IA & Matching
+                </Link>
+              )}
             </div>
 
             <div className="mt-6 p-4 bg-gray-50 rounded-md">
               <p className="text-sm text-gray-600">
-                🎉 <strong>Système d'authentification et profils fonctionnels!</strong>
+                ✨ <strong>Nouvelles fonctionnalités disponibles!</strong>
               </p>
               <p className="text-sm text-gray-600 mt-2">
-                Prochainement: portfolios, IA de brainstorming, et système de matching.
+                {user.role === 'CREATOR'
+                  ? 'Utilisez l\'IA pour brainstormer vos projets et trouvez les meilleurs professionnels!'
+                  : 'Complétez votre profil avec portfolio, compétences et recevez des messages des créateurs!'}
               </p>
             </div>
           </div>

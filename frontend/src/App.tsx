@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import CreatorProfile from './pages/CreatorProfile';
 import ProfessionalProfile from './pages/ProfessionalProfile';
+import Brainstorming from './pages/Brainstorming';
 
 function App() {
   const { loadUser, token } = useAuthStore();
@@ -25,6 +26,8 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile/creator" element={<CreatorProfile />} />
         <Route path="/profile/professional" element={<ProfessionalProfile />} />
+        <Route path="/brainstorming" element={<Brainstorming />} />
+        <Route path="/brainstorming/:conversationId" element={<Brainstorming />} />
         <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>

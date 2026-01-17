@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import creatorRoutes from './routes/creator.routes.js';
 import professionalRoutes from './routes/professional.routes.js';
+import aiRoutes from './routes/ai.routes.js';
+import matchingRoutes from './routes/matching.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -28,10 +30,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/creators', creatorRoutes);
 app.use('/api/professionals', professionalRoutes);
-
-// TODO: Add other routes here
-// app.use('/api/ai', aiRoutes);
-// app.use('/api/matching', matchingRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/matching', matchingRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

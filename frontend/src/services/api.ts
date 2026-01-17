@@ -147,3 +147,54 @@ export const professionalApi = {
     return response.data;
   },
 };
+
+// AI API
+export const aiApi = {
+  getConversations: async () => {
+    const response = await api.get('/api/ai/conversations');
+    return response.data;
+  },
+
+  getConversation: async (id: string) => {
+    const response = await api.get(`/api/ai/conversations/${id}`);
+    return response.data;
+  },
+
+  createConversation: async (data: { projectTitle?: string }) => {
+    const response = await api.post('/api/ai/conversations', data);
+    return response.data;
+  },
+
+  addMessage: async (conversationId: string, data: { message: string; role: string }) => {
+    const response = await api.post(`/api/ai/conversations/${conversationId}/messages`, data);
+    return response.data;
+  },
+
+  completeConversation: async (conversationId: string, data: { projectSummary?: string }) => {
+    const response = await api.put(`/api/ai/conversations/${conversationId}/complete`, data);
+    return response.data;
+  },
+
+  deleteConversation: async (conversationId: string) => {
+    const response = await api.delete(`/api/ai/conversations/${conversationId}`);
+    return response.data;
+  },
+};
+
+// Matching API
+export const matchingApi = {
+  generateMatches: async (conversationId: string) => {
+    const response = await api.post(`/api/matching/conversations/${conversationId}/match`);
+    return response.data;
+  },
+
+  getMatches: async (conversationId: string) => {
+    const response = await api.get(`/api/matching/conversations/${conversationId}/matches`);
+    return response.data;
+  },
+
+  contactProfessional: async (matchId: string, data: { message: string }) => {
+    const response = await api.put(`/api/matching/matches/${matchId}/contact`, data);
+    return response.data;
+  },
+};
