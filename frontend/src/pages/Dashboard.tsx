@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 export default function Dashboard() {
@@ -54,12 +54,21 @@ export default function Dashboard() {
               <p className="text-lg text-green-900">{user.email}</p>
             </div>
 
+            <div className="mt-6 space-y-3">
+              <Link
+                to={user.role === 'CREATOR' ? '/profile/creator' : '/profile/professional'}
+                className="block w-full text-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
+              >
+                Compléter mon profil
+              </Link>
+            </div>
+
             <div className="mt-6 p-4 bg-gray-50 rounded-md">
               <p className="text-sm text-gray-600">
-                🎉 <strong>Authentification fonctionnelle!</strong> Vous êtes maintenant connecté.
+                🎉 <strong>Système d'authentification et profils fonctionnels!</strong>
               </p>
               <p className="text-sm text-gray-600 mt-2">
-                Les prochaines fonctionnalités (profils, portfolios, IA, matching) seront ajoutées progressivement.
+                Prochainement: portfolios, IA de brainstorming, et système de matching.
               </p>
             </div>
           </div>

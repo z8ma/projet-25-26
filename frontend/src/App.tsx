@@ -4,6 +4,8 @@ import { useAuthStore } from './store/authStore';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import CreatorProfile from './pages/CreatorProfile';
+import ProfessionalProfile from './pages/ProfessionalProfile';
 
 function App() {
   const { loadUser, token } = useAuthStore();
@@ -21,6 +23,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile/creator" element={<CreatorProfile />} />
+        <Route path="/profile/professional" element={<ProfessionalProfile />} />
         <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>

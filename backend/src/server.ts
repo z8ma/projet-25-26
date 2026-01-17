@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
+import creatorRoutes from './routes/creator.routes.js';
+import professionalRoutes from './routes/professional.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -24,10 +26,10 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/creators', creatorRoutes);
+app.use('/api/professionals', professionalRoutes);
 
 // TODO: Add other routes here
-// app.use('/api/creators', creatorRoutes);
-// app.use('/api/professionals', professionalRoutes);
 // app.use('/api/ai', aiRoutes);
 // app.use('/api/matching', matchingRoutes);
 

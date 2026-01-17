@@ -62,3 +62,42 @@ export const authApi = {
     return response.data;
   },
 };
+
+// Creator API
+export const creatorApi = {
+  getProfile: async () => {
+    const response = await api.get('/api/creators/profile');
+    return response.data;
+  },
+
+  updateProfile: async (data: { companyName?: string }) => {
+    const response = await api.put('/api/creators/profile', data);
+    return response.data;
+  },
+};
+
+// Professional API
+export const professionalApi = {
+  getProfile: async () => {
+    const response = await api.get('/api/professionals/profile');
+    return response.data;
+  },
+
+  updateProfile: async (data: {
+    firstName?: string;
+    lastName?: string;
+    experienceYears?: number;
+    hourlyRate?: number;
+    availability?: string;
+    bio?: string;
+    otherProfession?: string;
+  }) => {
+    const response = await api.put('/api/professionals/profile', data);
+    return response.data;
+  },
+
+  getProfessions: async () => {
+    const response = await api.get('/api/professionals/professions');
+    return response.data;
+  },
+};
