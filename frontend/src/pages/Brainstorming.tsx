@@ -23,6 +23,9 @@ export default function Brainstorming() {
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [contactMessage, setContactMessage] = useState('');
 
+  // Confirmation modal for early matching
+  const [confirmMatchingModalOpen, setConfirmMatchingModalOpen] = useState(false);
+
   useEffect(() => {
     if (!user || user.role !== 'CREATOR') {
       navigate('/dashboard');
@@ -113,9 +116,23 @@ export default function Brainstorming() {
     }
   };
 
+  const handleGenerateMatches = () => {
+    // Check if we have enough conversation details (at least 3 user messages)
+    const userMessages = messages.filter((m: any) => m.role === 'user');
+
+    if (userMessages.length < 3) {
+      // Show confirmation modal if not enough details
+      setConfirmMatchingModalOpen(true);
+    } else {
+      // Directly launch matching if enough details
+      generateMatches();
+    }
+  };
+
   const generateMatches = async () => {
     if (!currentConversation || matchingLoading) return;
 
+    setConfirmMatchingModalOpen(false);
     setMatchingLoading(true);
     try {
       const response = await matchingApi.generateMatches(currentConversation.id);
@@ -239,7 +256,7 @@ export default function Brainstorming() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={generateMatches}
+                    onClick={handleGenerateMatches}
                     disabled={matchingLoading}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
                   >
@@ -385,6 +402,46 @@ export default function Brainstorming() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal for Early Matching */}
+      {confirmMatchingModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Pas encore assez de détails</h3>
+
+            <p className="text-gray-700 mb-4">
+              Je n'ai pas encore collecté beaucoup d'informations sur votre projet.
+              Pour un matching optimal, il serait préférable de continuer la conversation et de me donner plus de détails sur:
+            </p>
+
+            <ul className="list-disc list-inside text-gray-700 mb-4 space-y-1">
+              <li>Le type de projet exact</li>
+              <li>Votre public cible</li>
+              <li>Le style visuel souhaité</li>
+              <li>Vos contraintes (budget, deadline)</li>
+            </ul>
+
+            <p className="text-gray-700 font-medium mb-6">
+              Voulez-vous quand même trouver des professionnels maintenant?
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmMatchingModalOpen(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md font-medium"
+              >
+                Continuer la discussion
+              </button>
+              <button
+                onClick={generateMatches}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium"
+              >
+                Lancer le matching
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contact Modal */}
       {contactModalOpen && selectedMatch && (

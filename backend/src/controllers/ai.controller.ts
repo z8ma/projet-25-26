@@ -335,8 +335,9 @@ export class AiController {
     const responses = [
       "Excellent! Ces informations sont très utiles. Pouvez-vous m'en dire plus sur le style visuel que vous imaginez?",
       "Je comprends mieux votre vision. Avez-vous des exemples de projets similaires qui vous inspirent?",
-      "Très intéressant! Pour ce type de projet, je recommande de faire appel à un graphiste et éventuellement un motion designer. Voulez-vous que je lance le matching?",
-      "Parfait! Avec ces informations, je peux vous suggérer des professionnels qui correspondent à vos besoins. Souhaitez-vous voir les résultats du matching?",
+      "Très intéressant! Pour ce type de projet, je recommande de faire appel à un graphiste et éventuellement un motion designer.",
+      "Parfait! Je pense qu'on a assez d'informations maintenant. Avec ces détails sur votre projet, je peux vous suggérer des professionnels qui correspondent parfaitement à vos besoins.\n\nVoulez-vous que je lance le matching pour trouver les meilleurs créatifs disponibles?",
+      "Super! Plus vous me donnez de détails, mieux je pourrai matcher votre projet avec les bons professionnels. N'hésitez pas à cliquer sur 'Trouver des Professionnels' quand vous êtes prêt!",
     ];
 
     return responses[Math.min(messageCount - 1, responses.length - 1)];
