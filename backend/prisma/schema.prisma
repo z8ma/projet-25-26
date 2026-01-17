@@ -1,0 +1,299 @@
+// This is your Prisma schema file
+// Documentation: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Users table
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  creator      Creator?
+  professional Professional?
+  subscriptions Subscription[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  CREATOR
+  PROFESSIONAL
+
+  @@map("user_role")
+}
+
+// Subscription Plans
+model SubscriptionPlan {
+  id               String  @id @default(uuid())
+  name             String  @unique
+  priceMonthly     Decimal @map("price_monthly")
+  maxProjectsMonth Int     @map("max_projects_month")
+  aiCreditsMonth   Int     @map("ai_credits_month")
+  features         Json?
+  isActive         Boolean @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relations
+  subscriptions Subscription[]
+
+  @@map("subscription_plans")
+}
+
+// Subscriptions
+model Subscription {
+  id            String             @id @default(uuid())
+  userId        String             @map("user_id")
+  planId        String             @map("plan_id")
+  status        SubscriptionStatus
+  projectsUsed  Int                @default(0) @map("projects_used")
+  aiCreditsUsed Int                @default(0) @map("ai_credits_used")
+  resetDate     DateTime           @map("reset_date")
+  startedAt     DateTime           @map("started_at")
+  expiresAt     DateTime?          @map("expires_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  // Relations
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+
+  @@map("subscription_status")
+}
+
+// Creators
+model Creator {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  companyName  String?  @map("company_name")
+  projectCount Int      @default(0) @map("project_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations  AiConversation[]
+
+  @@map("creators")
+}
+
+// Professionals
+model Professional {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  firstName       String   @map("first_name")
+  lastName        String   @map("last_name")
+  experienceYears Int?     @map("experience_years")
+  hourlyRate      Decimal? @map("hourly_rate")
+  availability    String?
+  bio             String?
+  otherProfession String?  @map("other_profession")
+  isPremium       Boolean  @default(false) @map("is_premium")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  professions               ProfessionalProfession[]
+  softwareSkills            SoftwareSkill[]
+  portfolios                Portfolio[]
+  matches                   Match[]
+
+  @@index([isPremium])
+  @@index([availability])
+  @@map("professionals")
+}
+
+// Professions (métiers)
+model Profession {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  category  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  professionals ProfessionalProfession[]
+
+  @@map("professions")
+}
+
+// Professional Professions (many-to-many)
+model ProfessionalProfession {
+  id             String   @id @default(uuid())
+  professionalId String   @map("professional_id")
+  professionId   String   @map("profession_id")
+  isPrimary      Boolean  @default(false) @map("is_primary")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  profession   Profession   @relation(fields: [professionId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, professionId])
+  @@index([professionalId])
+  @@index([professionId])
+  @@map("professional_professions")
+}
+
+// Software Skills
+model SoftwareSkill {
+  id              String   @id @default(uuid())
+  professionalId  String   @map("professional_id")
+  softwareName    String   @map("software_name")
+  proficiencyLevel String? @map("proficiency_level")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@index([professionalId])
+  @@index([softwareName])
+  @@map("software_skills")
+}
+
+// Portfolios
+model Portfolio {
+  id             String   @id @default(uuid())
+  professionalId String   @map("professional_id")
+  title          String
+  description    String?
+  imageUrl       String?  @map("image_url")
+  projectType    String?  @map("project_type")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  professional Professional   @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  tags         PortfolioTag[]
+
+  @@index([professionalId])
+  @@index([projectType])
+  @@map("portfolios")
+}
+
+// Portfolio Tags
+model PortfolioTag {
+  id          String   @id @default(uuid())
+  portfolioId String   @map("portfolio_id")
+  tag         String
+  aiDetected  Boolean  @default(false) @map("ai_detected")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([tag])
+  @@map("portfolio_tags")
+}
+
+// AI Conversations
+model AiConversation {
+  id             String              @id @default(uuid())
+  creatorId      String              @map("creator_id")
+  status         ConversationStatus
+  projectTitle   String?             @map("project_title")
+  projectSummary String?             @map("project_summary")
+  messages       Json                @default("[]")
+  aiCreditsUsed  Int                 @default(0) @map("ai_credits_used")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  creator        Creator             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  documents      GeneratedDocument[]
+  matches        Match[]
+
+  @@index([creatorId])
+  @@index([status])
+  @@map("ai_conversations")
+}
+
+enum ConversationStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+
+  @@map("conversation_status")
+}
+
+// Generated Documents
+model GeneratedDocument {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  docType        String   @map("doc_type")
+  content        Json?
+  fileUrl        String?  @map("file_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([docType])
+  @@map("generated_docs")
+}
+
+// Matches
+model Match {
+  id             String      @id @default(uuid())
+  conversationId String      @map("conversation_id")
+  professionalId String      @map("professional_id")
+  matchScore     Int         @map("match_score")
+  reasoning      String?
+  status         MatchStatus
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  professional Professional   @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  rating       Rating?
+
+  @@index([conversationId])
+  @@index([professionalId])
+  @@index([matchScore])
+  @@map("matches")
+}
+
+enum MatchStatus {
+  PROPOSED
+  CONTACTED
+  ACCEPTED
+  DECLINED
+
+  @@map("match_status")
+}
+
+// Ratings (v2)
+model Rating {
+  id        String   @id @default(uuid())
+  matchId   String   @unique @map("match_id")
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([rating])
+  @@map("ratings")
+}

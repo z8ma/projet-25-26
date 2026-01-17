@@ -1,59 +1,73 @@
-# Frontend - Creative Match
+# React + TypeScript + Vite
 
-Application React + TypeScript pour la plateforme Creative Match.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## 🛠️ Stack Technique
+Currently, two official plugins are available:
 
-- **React 18+**
-- **TypeScript**
-- **Vite** (build tool)
-- **TailwindCSS** (styling)
-- **React Router v6** (routing)
-- **React Hook Form** (formulaires)
-- **Axios** (HTTP client)
-- **Zustand** (state management léger)
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## 📁 Structure Prévue
+## React Compiler
 
-```
-frontend/
-├── public/
-├── src/
-│   ├── assets/           # Images, fonts, etc.
-│   ├── components/       # Composants réutilisables
-│   │   ├── common/      # Buttons, Inputs, etc.
-│   │   ├── layout/      # Header, Footer, Sidebar
-│   │   └── features/    # Composants métier
-│   ├── pages/            # Pages principales
-│   │   ├── auth/        # Login, Register
-│   │   ├── creator/     # Dashboard créateur
-│   │   ├── professional/# Dashboard professionnel
-│   │   └── landing/     # Page d'accueil
-│   ├── hooks/            # Custom React hooks
-│   ├── services/         # API calls
-│   ├── store/            # Zustand stores
-│   ├── types/            # TypeScript types
-│   ├── utils/            # Utilitaires
-│   ├── App.tsx
-│   └── main.tsx
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── tailwind.config.js
-```
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## 🚀 Installation (à venir)
+## Expanding the ESLint configuration
 
-```bash
-cd frontend
-npm install
-npm run dev
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-## 📝 Scripts
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-- `npm run dev` - Développement
-- `npm run build` - Build production
-- `npm run preview` - Preview du build
-- `npm run lint` - ESLint
-- `npm run test` - Tests (Vitest)
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```

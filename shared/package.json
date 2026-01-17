@@ -1,0 +1,22 @@
+{
+  "name": "@creative-match/shared",
+  "version": "1.0.0",
+  "description": "Types TypeScript communs entre frontend et backend.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "creative-match",
+    "types",
+    "shared"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
