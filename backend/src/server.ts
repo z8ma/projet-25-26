@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import authRoutes from './routes/auth.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -21,8 +22,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Creative Match API is running' });
 });
 
-// TODO: Add routes here
-// app.use('/api/auth', authRoutes);
+// API Routes
+app.use('/api/auth', authRoutes);
+
+// TODO: Add other routes here
 // app.use('/api/creators', creatorRoutes);
 // app.use('/api/professionals', professionalRoutes);
 // app.use('/api/ai', aiRoutes);
