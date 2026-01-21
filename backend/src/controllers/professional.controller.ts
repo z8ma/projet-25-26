@@ -56,7 +56,22 @@ export class ProfessionalController {
   async updateProfile(req: Request, res: Response) {
     try {
       const userId = req.userId;
-      const { firstName, lastName, experienceYears, hourlyRate, availability, bio, otherProfession } = req.body;
+      const {
+        firstName,
+        lastName,
+        experienceYears,
+        hourlyRate,
+        availability,
+        bio,
+        otherProfession,
+        // Nouveaux champs IA Matching
+        missionTypes,
+        otherMissionType,
+        preferredClientTypes,
+        preferredCollabTypes,
+        minimumBudget,
+        exclusions,
+      } = req.body;
 
       const professional = await prisma.professional.update({
         where: { userId },
@@ -68,13 +83,27 @@ export class ProfessionalController {
           availability,
           bio,
           otherProfession,
+          // Nouveaux champs IA Matching
+          missionTypes: missionTypes || undefined,
+          otherMissionType,
+          preferredClientTypes: preferredClientTypes || undefined,
+          preferredCollabTypes: preferredCollabTypes || undefined,
+          minimumBudget: minimumBudget ? parseFloat(minimumBudget) : undefined,
+          exclusions: exclusions || undefined,
         },
+      });
+
+      // Recalculer le score de complétude du profil
+      const completeness = this.calculateProfileCompleteness(professional);
+      await prisma.professional.update({
+        where: { id: professional.id },
+        data: { profileCompleteness: completeness },
       });
 
       res.json({
         success: true,
         message: 'Profil mis à jour avec succès',
-        data: professional,
+        data: { ...professional, profileCompleteness: completeness },
       });
     } catch (error: any) {
       res.status(500).json({
@@ -82,6 +111,39 @@ export class ProfessionalController {
         message: error.message || 'Erreur lors de la mise à jour du profil',
       });
     }
+  }
+
+  // Calcule le score de complétude du profil (0-100)
+  private calculateProfileCompleteness(professional: any): number {
+    let score = 0;
+    const weights = {
+      firstName: 5,
+      lastName: 5,
+      bio: 10,
+      experienceYears: 5,
+      hourlyRate: 5,
+      availability: 5,
+      missionTypes: 15,          // Prioritaire pour le matching
+      preferredClientTypes: 10,
+      preferredCollabTypes: 10,
+      minimumBudget: 5,
+      exclusions: 5,            // Important pour éviter les mauvais matchs
+    };
+
+    if (professional.firstName) score += weights.firstName;
+    if (professional.lastName) score += weights.lastName;
+    if (professional.bio && professional.bio.length > 50) score += weights.bio;
+    if (professional.experienceYears) score += weights.experienceYears;
+    if (professional.hourlyRate) score += weights.hourlyRate;
+    if (professional.availability) score += weights.availability;
+    if (professional.missionTypes && professional.missionTypes.length > 0) score += weights.missionTypes;
+    if (professional.preferredClientTypes && professional.preferredClientTypes.length > 0) score += weights.preferredClientTypes;
+    if (professional.preferredCollabTypes && professional.preferredCollabTypes.length > 0) score += weights.preferredCollabTypes;
+    if (professional.minimumBudget) score += weights.minimumBudget;
+    if (professional.exclusions && professional.exclusions.length > 0) score += weights.exclusions;
+
+    // Score de base = 80, les 20% restants viennent des skills et portfolio
+    return Math.min(score, 80);
   }
 
   // GET /api/professionals/professions - Get all available professions
@@ -160,7 +222,7 @@ export class ProfessionalController {
       const { id } = req.params;
 
       await prisma.professionalProfession.delete({
-        where: { id },
+        where: { id: id as string },
       });
 
       res.json({
@@ -178,8 +240,8 @@ export class ProfessionalController {
   // POST /api/professionals/skills - Add software skill
   async addSkill(req: Request, res: Response) {
     try {
-      const userId = req.userId;
-      const { softwareName, proficiencyLevel } = req.body;
+      const userId = req.userId as string;
+      const { softwareName, proficiencyLevel, yearsOfUse } = req.body;
 
       const professional = await prisma.professional.findUnique({
         where: { userId },
@@ -196,7 +258,8 @@ export class ProfessionalController {
         data: {
           professionalId: professional.id,
           softwareName,
-          proficiencyLevel: proficiencyLevel || 'Intermédiaire',
+          proficiencyLevel: proficiencyLevel || 'CONFIRMED',
+          yearsOfUse: yearsOfUse ? parseInt(yearsOfUse) : undefined,
         },
       });
 
@@ -213,13 +276,41 @@ export class ProfessionalController {
     }
   }
 
+  // PUT /api/professionals/skills/:id - Update software skill
+  async updateSkill(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { softwareName, proficiencyLevel, yearsOfUse } = req.body;
+
+      const skill = await prisma.softwareSkill.update({
+        where: { id: id as string },
+        data: {
+          softwareName,
+          proficiencyLevel,
+          yearsOfUse: yearsOfUse ? parseInt(yearsOfUse) : undefined,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Compétence mise à jour avec succès',
+        data: skill,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la mise à jour de la compétence',
+      });
+    }
+  }
+
   // DELETE /api/professionals/skills/:id - Remove software skill
   async removeSkill(req: Request, res: Response) {
     try {
       const { id } = req.params;
 
       await prisma.softwareSkill.delete({
-        where: { id },
+        where: { id: id as string },
       });
 
       res.json({
@@ -237,8 +328,21 @@ export class ProfessionalController {
   // POST /api/professionals/portfolio - Add portfolio item
   async addPortfolio(req: Request, res: Response) {
     try {
-      const userId = req.userId;
-      const { title, description, imageUrl, projectType, tags } = req.body;
+      const userId = req.userId as string;
+      const {
+        title,
+        description,
+        imageUrl,
+        projectType,
+        tags,
+        // Nouveaux champs enrichissement IA
+        clientType,
+        projectGoal,
+        roleDescription,
+        projectDuration,
+        projectImpact,
+        projectYear,
+      } = req.body;
 
       const professional = await prisma.professional.findUnique({
         where: { userId },
@@ -258,6 +362,13 @@ export class ProfessionalController {
           description,
           imageUrl,
           projectType,
+          // Nouveaux champs enrichissement IA
+          clientType,
+          projectGoal,
+          roleDescription,
+          projectDuration,
+          projectImpact,
+          projectYear: projectYear ? parseInt(projectYear) : undefined,
           tags: {
             create: tags?.map((tag: string) => ({ tag })) || [],
           },
@@ -280,13 +391,62 @@ export class ProfessionalController {
     }
   }
 
+  // PUT /api/professionals/portfolio/:id - Update portfolio item
+  async updatePortfolio(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const {
+        title,
+        description,
+        imageUrl,
+        projectType,
+        clientType,
+        projectGoal,
+        roleDescription,
+        projectDuration,
+        projectImpact,
+        projectYear,
+      } = req.body;
+
+      const portfolio = await prisma.portfolio.update({
+        where: { id: id as string },
+        data: {
+          title,
+          description,
+          imageUrl,
+          projectType,
+          clientType,
+          projectGoal,
+          roleDescription,
+          projectDuration,
+          projectImpact,
+          projectYear: projectYear ? parseInt(projectYear) : undefined,
+        },
+        include: {
+          tags: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Projet mis à jour avec succès',
+        data: portfolio,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la mise à jour du projet',
+      });
+    }
+  }
+
   // DELETE /api/professionals/portfolio/:id - Remove portfolio item
   async removePortfolio(req: Request, res: Response) {
     try {
       const { id } = req.params;
 
       await prisma.portfolio.delete({
-        where: { id },
+        where: { id: id as string },
       });
 
       res.json({
@@ -304,7 +464,7 @@ export class ProfessionalController {
   // GET /api/professionals/messages - Get messages for professional
   async getMessages(req: Request, res: Response) {
     try {
-      const userId = req.userId;
+      const userId = req.userId as string;
 
       const messages = await prisma.message.findMany({
         where: { receiverId: userId },
@@ -329,7 +489,7 @@ export class ProfessionalController {
       const { id } = req.params;
 
       const message = await prisma.message.update({
-        where: { id },
+        where: { id: id as string },
         data: { isRead: true },
       });
 

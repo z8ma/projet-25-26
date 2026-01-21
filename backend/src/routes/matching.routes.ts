@@ -11,5 +11,6 @@ router.use(authMiddleware);
 router.post('/conversations/:conversationId/match', matchingController.generateMatches.bind(matchingController));
 router.get('/conversations/:conversationId/matches', matchingController.getMatches.bind(matchingController));
 router.put('/matches/:matchId/contact', matchingController.contactProfessional.bind(matchingController));
+router.put('/matches/:matchId/project-status', matchingController.updateProjectStatus.bind(matchingController));
 
 export default router;

@@ -91,6 +91,13 @@ export const professionalApi = {
     availability?: string;
     bio?: string;
     otherProfession?: string;
+    // Nouveaux champs IA Matching
+    missionTypes?: string[];
+    otherMissionType?: string;
+    preferredClientTypes?: string[];
+    preferredCollabTypes?: string[];
+    minimumBudget?: number;
+    exclusions?: string[];
   }) => {
     const response = await api.put('/api/professionals/profile', data);
     return response.data;
@@ -111,8 +118,13 @@ export const professionalApi = {
     return response.data;
   },
 
-  addSkill: async (data: { softwareName: string; proficiencyLevel?: string }) => {
+  addSkill: async (data: { softwareName: string; proficiencyLevel?: string; yearsOfUse?: number }) => {
     const response = await api.post('/api/professionals/skills', data);
+    return response.data;
+  },
+
+  updateSkill: async (id: string, data: { softwareName?: string; proficiencyLevel?: string; yearsOfUse?: number }) => {
+    const response = await api.put(`/api/professionals/skills/${id}`, data);
     return response.data;
   },
 
@@ -127,8 +139,31 @@ export const professionalApi = {
     imageUrl?: string;
     projectType?: string;
     tags?: string[];
+    // Nouveaux champs enrichissement IA
+    clientType?: string;
+    projectGoal?: string;
+    roleDescription?: string;
+    projectDuration?: string;
+    projectImpact?: string;
+    projectYear?: number;
   }) => {
     const response = await api.post('/api/professionals/portfolio', data);
+    return response.data;
+  },
+
+  updatePortfolio: async (id: string, data: {
+    title?: string;
+    description?: string;
+    imageUrl?: string;
+    projectType?: string;
+    clientType?: string;
+    projectGoal?: string;
+    roleDescription?: string;
+    projectDuration?: string;
+    projectImpact?: string;
+    projectYear?: number;
+  }) => {
+    const response = await api.put(`/api/professionals/portfolio/${id}`, data);
     return response.data;
   },
 
@@ -179,6 +214,11 @@ export const aiApi = {
     const response = await api.delete(`/api/ai/conversations/${conversationId}`);
     return response.data;
   },
+
+  updateConversationTitle: async (conversationId: string, data: { projectTitle: string }) => {
+    const response = await api.put(`/api/ai/conversations/${conversationId}/title`, data);
+    return response.data;
+  },
 };
 
 // Matching API
@@ -195,6 +235,42 @@ export const matchingApi = {
 
   contactProfessional: async (matchId: string, data: { message: string }) => {
     const response = await api.put(`/api/matching/matches/${matchId}/contact`, data);
+    return response.data;
+  },
+
+  updateProjectStatus: async (matchId: string, data: { projectStatus: string }) => {
+    const response = await api.put(`/api/matching/matches/${matchId}/project-status`, data);
+    return response.data;
+  },
+};
+
+// Notification API
+export const notificationApi = {
+  getNotifications: async () => {
+    const response = await api.get('/api/notifications');
+    return response.data;
+  },
+
+  markAsRead: async (id: string) => {
+    const response = await api.put(`/api/notifications/${id}/read`);
+    return response.data;
+  },
+
+  markAllAsRead: async () => {
+    const response = await api.put('/api/notifications/read-all');
+    return response.data;
+  },
+};
+
+// Rating API
+export const ratingApi = {
+  createRating: async (data: { matchId: string; rating: number; comment?: string }) => {
+    const response = await api.post('/api/ratings', data);
+    return response.data;
+  },
+
+  getRating: async (matchId: string) => {
+    const response = await api.get(`/api/ratings/match/${matchId}`);
     return response.data;
   },
 };

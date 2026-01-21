@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import prisma from '../config/prisma.js';
 import { RegisterInput, LoginInput } from '../validators/auth.validator.js';
 
@@ -131,9 +131,9 @@ export class AuthService {
       throw new Error('JWT_SECRET is not defined in environment variables');
     }
 
-    return jwt.sign({ userId }, secret, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    });
+    const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+
+    return jwt.sign({ userId }, secret, { expiresIn } as SignOptions);
   }
 
   // Verify JWT token

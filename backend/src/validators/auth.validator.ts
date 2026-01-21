@@ -10,7 +10,7 @@ export const registerSchema = z.object({
     .regex(/[a-z]/, 'Le mot de passe doit contenir au moins une minuscule')
     .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre'),
   role: z.enum(['CREATOR', 'PROFESSIONAL'], {
-    errorMap: () => ({ message: 'Le rôle doit être CREATOR ou PROFESSIONAL' }),
+    error: 'Le rôle doit être CREATOR ou PROFESSIONAL',
   }),
   // Optional fields for creators
   companyName: z.string().optional(),

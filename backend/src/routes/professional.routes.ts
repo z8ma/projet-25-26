@@ -20,10 +20,12 @@ router.delete('/professions/:id', professionalController.removeProfession.bind(p
 
 // Skills
 router.post('/skills', professionalController.addSkill.bind(professionalController));
+router.put('/skills/:id', professionalController.updateSkill.bind(professionalController));
 router.delete('/skills/:id', professionalController.removeSkill.bind(professionalController));
 
 // Portfolio
 router.post('/portfolio', professionalController.addPortfolio.bind(professionalController));
+router.put('/portfolio/:id', professionalController.updatePortfolio.bind(professionalController));
 router.delete('/portfolio/:id', professionalController.removePortfolio.bind(professionalController));
 
 // Messages

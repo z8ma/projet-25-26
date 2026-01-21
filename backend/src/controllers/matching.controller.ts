@@ -1,12 +1,13 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma.js';
+import { NotificationController } from './notification.controller.js';
 
 export class MatchingController {
   // POST /api/matching/conversations/:conversationId/match - Generate matches for conversation
   async generateMatches(req: Request, res: Response) {
     try {
       const { conversationId } = req.params;
-      const userId = req.userId;
+      const userId = req.userId as string;
 
       const creator = await prisma.creator.findUnique({
         where: { userId },
@@ -21,7 +22,7 @@ export class MatchingController {
 
       const conversation = await prisma.aiConversation.findFirst({
         where: {
-          id: conversationId,
+          id: conversationId as string,
           creatorId: creator.id,
         },
       });
@@ -66,7 +67,7 @@ export class MatchingController {
 
       // Delete existing matches for this conversation
       await prisma.match.deleteMany({
-        where: { conversationId },
+        where: { conversationId: conversationId as string },
       });
 
       // Create new matches
@@ -74,7 +75,7 @@ export class MatchingController {
         matches.map((match) =>
           prisma.match.create({
             data: {
-              conversationId,
+              conversationId: conversationId as string,
               professionalId: match.professionalId,
               matchScore: match.score,
               reasoning: match.reasoning,
@@ -123,7 +124,7 @@ export class MatchingController {
   async getMatches(req: Request, res: Response) {
     try {
       const { conversationId } = req.params;
-      const userId = req.userId;
+      const userId = req.userId as string;
 
       const creator = await prisma.creator.findUnique({
         where: { userId },
@@ -137,7 +138,7 @@ export class MatchingController {
       }
 
       const matches = await prisma.match.findMany({
-        where: { conversationId },
+        where: { conversationId: conversationId as string },
         orderBy: { matchScore: 'desc' },
         include: {
           professional: {
@@ -184,10 +185,10 @@ export class MatchingController {
     try {
       const { matchId } = req.params;
       const { message } = req.body;
-      const userId = req.userId;
+      const userId = req.userId as string;
 
       const match = await prisma.match.findUnique({
-        where: { id: matchId },
+        where: { id: matchId as string },
         include: {
           conversation: {
             include: {
@@ -219,7 +220,7 @@ export class MatchingController {
 
       // Update match status
       const updatedMatch = await prisma.match.update({
-        where: { id: matchId },
+        where: { id: matchId as string },
         data: { status: 'CONTACTED' },
       });
 
@@ -229,12 +230,21 @@ export class MatchingController {
           data: {
             senderId: userId,
             receiverId: match.professional.userId,
-            matchId: matchId,
+            matchId: matchId as string,
             subject: `Nouveau projet: ${match.conversation.projectTitle}`,
             content: message,
           },
         });
       }
+
+      // Create notification for professional
+      await NotificationController.createNotification(
+        match.professionalId,
+        'NEW_MATCH',
+        'Nouveau projet correspondant!',
+        `Un créateur vous a contacté pour le projet: ${match.conversation.projectTitle}`,
+        matchId as string
+      );
 
       res.json({
         success: true,
@@ -245,6 +255,90 @@ export class MatchingController {
       res.status(500).json({
         success: false,
         message: error.message || 'Erreur lors du contact',
+      });
+    }
+  }
+
+  // PUT /api/matching/matches/:matchId/project-status - Update project status (for professionals)
+  async updateProjectStatus(req: Request, res: Response) {
+    try {
+      const { matchId } = req.params;
+      const { projectStatus } = req.body;
+      const userId = req.userId as string;
+
+      const professional = await prisma.professional.findUnique({
+        where: { userId },
+      });
+
+      if (!professional) {
+        return res.status(404).json({
+          success: false,
+          message: 'Profil professionnel non trouvé',
+        });
+      }
+
+      const match = await prisma.match.findFirst({
+        where: {
+          id: matchId as string,
+          professionalId: professional.id,
+        },
+      });
+
+      if (!match) {
+        return res.status(404).json({
+          success: false,
+          message: 'Match non trouvé ou non autorisé',
+        });
+      }
+
+      // Update match with new project status
+      const updateData: any = { projectStatus };
+
+      if (projectStatus === 'IN_PROGRESS' && !match.startedAt) {
+        updateData.startedAt = new Date();
+      }
+
+      if (projectStatus === 'COMPLETED' && !match.completedAt) {
+        updateData.completedAt = new Date();
+      }
+
+      const updatedMatch = await prisma.match.update({
+        where: { id: matchId as string },
+        data: updateData,
+      });
+
+      // Update professional stats
+      if (projectStatus === 'IN_PROGRESS' && match.projectStatus === 'NOT_STARTED') {
+        await prisma.professional.update({
+          where: { id: professional.id },
+          data: {
+            projectsInProgress: { increment: 1 },
+          },
+        });
+      }
+
+      if (projectStatus === 'COMPLETED' && match.projectStatus !== 'COMPLETED') {
+        await prisma.professional.update({
+          where: { id: professional.id },
+          data: {
+            projectsCompleted: { increment: 1 },
+            projectsInProgress: { decrement: 1 },
+          },
+        });
+      }
+
+      // Notify creator about project status update
+      // (In real app, would create notification for creator too)
+
+      res.json({
+        success: true,
+        message: 'Statut du projet mis à jour avec succès',
+        data: updatedMatch,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la mise à jour',
       });
     }
   }

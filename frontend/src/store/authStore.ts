@@ -37,9 +37,29 @@ interface AuthState {
   clearError: () => void;
 }
 
+// Initialize user from localStorage if available
+const initializeAuth = () => {
+  const token = localStorage.getItem('token');
+  const userStr = localStorage.getItem('user');
+
+  if (token && userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      return { user, token };
+    } catch (e) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+  }
+
+  return { user: null, token: null };
+};
+
+const { user: initialUser, token: initialToken } = initializeAuth();
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: localStorage.getItem('token'),
+  user: initialUser,
+  token: initialToken,
   isLoading: false,
   error: null,
 
@@ -99,6 +119,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await authApi.getMe();
       if (response.success) {
+        // Update localStorage with fresh user data
+        localStorage.setItem('user', JSON.stringify(response.data));
         set({ user: response.data, isLoading: false });
       }
     } catch (error) {

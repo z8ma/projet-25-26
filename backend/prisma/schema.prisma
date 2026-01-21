@@ -98,18 +98,42 @@ model Creator {
 
 // Professionals
 model Professional {
-  id              String   @id @default(uuid())
-  userId          String   @unique @map("user_id")
-  firstName       String   @map("first_name")
-  lastName        String   @map("last_name")
-  experienceYears Int?     @map("experience_years")
-  hourlyRate      Decimal? @map("hourly_rate")
-  availability    String?
-  bio             String?
-  otherProfession String?  @map("other_profession")
-  isPremium       Boolean  @default(false) @map("is_premium")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  firstName           String   @map("first_name")
+  lastName            String   @map("last_name")
+  experienceYears     Int?     @map("experience_years")
+  hourlyRate          Decimal? @map("hourly_rate")
+  availability        String?
+  bio                 String?
+  otherProfession     String?  @map("other_profession")
+  isPremium           Boolean  @default(false) @map("is_premium")
+  projectsCompleted   Int      @default(0) @map("projects_completed")
+  projectsInProgress  Int      @default(0) @map("projects_in_progress")
+  averageRating       Decimal? @map("average_rating")
+  totalRatings        Int      @default(0) @map("total_ratings")
+  responseRate        Int      @default(100) @map("response_rate")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // ===== NOUVEAUX CHAMPS POUR IA MATCHING =====
+
+  // 1. Types de missions recherchées (prioritaire pour le matching)
+  missionTypes        String[] @default([]) @map("mission_types")
+  otherMissionType    String?  @map("other_mission_type")
+
+  // 3. Préférences de projets
+  preferredClientTypes    String[] @default([]) @map("preferred_client_types")
+  preferredCollabTypes    String[] @default([]) @map("preferred_collab_types")
+  minimumBudget           Decimal? @map("minimum_budget")
+
+  // 4. Ce que le pro NE VEUT PAS faire (exclusions)
+  exclusions              String[] @default([])
+
+  // Profil IA calculé (embeddings et metadata)
+  profileEmbedding        String?  @map("profile_embedding") // JSON string des vecteurs
+  profileCompleteness     Int      @default(0) @map("profile_completeness")
+  lastAiAnalysis          DateTime? @map("last_ai_analysis")
 
   // Relations
   user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -117,9 +141,13 @@ model Professional {
   softwareSkills            SoftwareSkill[]
   portfolios                Portfolio[]
   matches                   Match[]
+  notifications             Notification[]
 
   @@index([isPremium])
   @@index([availability])
+  @@index([averageRating])
+  @@index([missionTypes])
+  @@index([profileCompleteness])
   @@map("professionals")
 }
 
@@ -154,12 +182,13 @@ model ProfessionalProfession {
   @@map("professional_professions")
 }
 
-// Software Skills
+// Software Skills (avec niveau détaillé pour IA)
 model SoftwareSkill {
   id              String   @id @default(uuid())
   professionalId  String   @map("professional_id")
   softwareName    String   @map("software_name")
-  proficiencyLevel String? @map("proficiency_level")
+  proficiencyLevel String? @map("proficiency_level") // JUNIOR, CONFIRMED, SENIOR, EXPERT
+  yearsOfUse      Int?     @map("years_of_use")
   createdAt       DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -167,10 +196,11 @@ model SoftwareSkill {
 
   @@index([professionalId])
   @@index([softwareName])
+  @@index([proficiencyLevel])
   @@map("software_skills")
 }
 
-// Portfolios
+// Portfolios (enrichis pour IA)
 model Portfolio {
   id             String   @id @default(uuid())
   professionalId String   @map("professional_id")
@@ -180,12 +210,25 @@ model Portfolio {
   projectType    String?  @map("project_type")
   createdAt      DateTime @default(now()) @map("created_at")
 
+  // ===== ENRICHISSEMENT PORTFOLIO POUR IA =====
+  clientType     String?  @map("client_type")      // Startup, PME, Grand compte, Agence, etc.
+  projectGoal    String?  @map("project_goal")     // Objectif du projet
+  roleDescription String? @map("role_description") // Rôle exact du professionnel
+  projectDuration String? @map("project_duration") // Ex: "2 semaines", "3 mois"
+  projectImpact  String?  @map("project_impact")   // Résultat ou impact (optionnel)
+  projectYear    Int?     @map("project_year")     // Année de réalisation
+
+  // Analyse IA du projet
+  aiAnalysis     Json?    @map("ai_analysis")      // Style détecté, techniques, qualité
+  imageEmbedding String?  @map("image_embedding")  // Vecteur pour matching visuel
+
   // Relations
   professional Professional   @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   tags         PortfolioTag[]
 
   @@index([professionalId])
   @@index([projectType])
+  @@index([clientType])
   @@map("portfolios")
 }
 
@@ -207,15 +250,16 @@ model PortfolioTag {
 
 // AI Conversations
 model AiConversation {
-  id             String              @id @default(uuid())
-  creatorId      String              @map("creator_id")
-  status         ConversationStatus
-  projectTitle   String?             @map("project_title")
-  projectSummary String?             @map("project_summary")
-  messages       Json                @default("[]")
-  aiCreditsUsed  Int                 @default(0) @map("ai_credits_used")
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
+  id              String              @id @default(uuid())
+  creatorId       String              @map("creator_id")
+  status          ConversationStatus
+  projectTitle    String?             @map("project_title")
+  projectSummary  String?             @map("project_summary")
+  messages        Json                @default("[]")
+  projectInsights Json?               @map("project_insights")
+  aiCreditsUsed   Int                 @default(0) @map("ai_credits_used")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
 
   // Relations
   creator        Creator             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
@@ -254,14 +298,17 @@ model GeneratedDocument {
 
 // Matches
 model Match {
-  id             String      @id @default(uuid())
-  conversationId String      @map("conversation_id")
-  professionalId String      @map("professional_id")
-  matchScore     Int         @map("match_score")
-  reasoning      String?
-  status         MatchStatus
-  createdAt      DateTime    @default(now()) @map("created_at")
-  updatedAt      DateTime    @updatedAt @map("updated_at")
+  id              String        @id @default(uuid())
+  conversationId  String        @map("conversation_id")
+  professionalId  String        @map("professional_id")
+  matchScore      Int           @map("match_score")
+  reasoning       String?
+  status          MatchStatus
+  projectStatus   ProjectStatus @default(NOT_STARTED) @map("project_status")
+  startedAt       DateTime?     @map("started_at")
+  completedAt     DateTime?     @map("completed_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
   // Relations
   conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -271,6 +318,7 @@ model Match {
   @@index([conversationId])
   @@index([professionalId])
   @@index([matchScore])
+  @@index([projectStatus])
   @@map("matches")
 }
 
@@ -281,6 +329,16 @@ enum MatchStatus {
   DECLINED
 
   @@map("match_status")
+}
+
+enum ProjectStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  CANCELLED
+
+  @@map("project_status")
 }
 
 // Ratings (v2)
@@ -314,4 +372,33 @@ model Message {
   @@index([matchId])
   @@index([isRead])
   @@map("messages")
+}
+
+// Notifications for professionals
+model Notification {
+  id              String           @id @default(uuid())
+  professionalId  String           @map("professional_id")
+  type            NotificationType
+  title           String
+  message         String
+  matchId         String?          @map("match_id")
+  isRead          Boolean          @default(false) @map("is_read")
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@index([professionalId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  NEW_MATCH
+  PROJECT_UPDATE
+  MESSAGE_RECEIVED
+  RATING_RECEIVED
+
+  @@map("notification_type")
 }
