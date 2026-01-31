@@ -86,7 +86,7 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-50 h-full w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -108,31 +108,20 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
           </button>
         </div>
 
-        {/* User Info */}
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-              {user?.creator?.companyName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 truncate">
-                {user?.creator?.companyName || 'Mon Entreprise'}
-              </p>
-              <p className="text-sm text-gray-500 truncate">{user?.email}</p>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
+        {/* User Badges */}
+        <div className="px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
               Créateur
             </span>
-            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+            <span className="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
               Plan Gratuit
             </span>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 flex-1 overflow-y-auto">
+        <nav className="p-4">
           <ul className="space-y-1">
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
@@ -156,11 +145,15 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
           </ul>
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-100">
+        {/* Spacer to push logout to bottom */}
+        <div className="flex-1"></div>
+
+        {/* Sidebar Footer - Logout */}
+        <div className="p-4 pb-6 mt-auto">
+          <div className="mx-2 mb-4 border-t border-gray-200"></div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-xl font-medium transition-all duration-200"
+            className="flex items-center gap-3 w-full px-4 py-3 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-xl font-medium transition-all duration-200"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

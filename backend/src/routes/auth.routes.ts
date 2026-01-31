@@ -10,5 +10,7 @@ router.post('/login', authController.login.bind(authController));
 
 // Protected routes (require authentication)
 router.get('/me', authMiddleware, authController.me.bind(authController));
+router.put('/change-password', authMiddleware, authController.changePassword.bind(authController));
+router.delete('/account', authMiddleware, authController.deleteAccount.bind(authController));
 
 export default router;

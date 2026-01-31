@@ -1,15 +1,10 @@
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import PublicNavbar from '../components/PublicNavbar';
 
-const professionalWork = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=600&fit=crop';
 const creativeProfessional = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&h=600&fit=crop';
-const portfolioDisplay = 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop';
-const networkingEvent = 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&h=600&fit=crop';
 
 export default function ProfessionalLanding() {
-  const [solutionsOpen, setSolutionsOpen] = useState(false);
-  const [ressourcesOpen, setRessourcesOpen] = useState(false);
-
   // Intersection Observer pour les animations au scroll
   useEffect(() => {
     const observerOptions = {
@@ -35,124 +30,7 @@ export default function ProfessionalLanding() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 animate-gradient">
-      {/* Navigation - Détachée et arrondie */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-6xl px-4">
-        <nav className="bg-white/95 backdrop-blur-lg rounded-full shadow-2xl border border-gray-100">
-          <div className="px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              {/* Logo et menu gauche */}
-              <div className="flex items-center gap-8">
-                <Link to="/" className="flex items-center group">
-                  <h1 className="text-3xl font-bold logo-gradient transition-transform duration-300 hover:scale-110">
-                    JUNY
-                  </h1>
-                </Link>
-
-                <div className="hidden md:flex items-center gap-2">
-                  {/* Solutions Dropdown */}
-                  <div
-                    className="relative"
-                    onMouseEnter={() => setSolutionsOpen(true)}
-                    onMouseLeave={() => setSolutionsOpen(false)}
-                  >
-                    <button className="px-4 py-2.5 text-base text-gray-700 hover:text-purple-600 font-medium transition-all duration-200 rounded-full hover:bg-purple-50 flex items-center gap-1.5">
-                      Solutions
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {solutionsOpen && (
-                      <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl py-3 border border-gray-100">
-                        <a
-                          href="/#solutions"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-purple-50 transition-colors rounded-xl mx-2"
-                        >
-                          <div className="font-semibold text-gray-900">Matching IA</div>
-                          <div className="text-sm text-gray-500">Trouvez le professionnel parfait</div>
-                        </a>
-                        <a
-                          href="/#how-it-works"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-purple-50 transition-colors rounded-xl mx-2"
-                        >
-                          <div className="font-semibold text-gray-900">Brainstorming IA</div>
-                          <div className="text-sm text-gray-500">Affinez votre projet avec l'IA</div>
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Professionnels */}
-                  <Link
-                    to="/professionnels"
-                    className="px-4 py-2.5 text-base text-purple-600 font-semibold transition-all duration-200 rounded-full bg-purple-50"
-                  >
-                    Professionnels
-                  </Link>
-
-                  {/* Tarifs */}
-                  <a
-                    href="/#pricing"
-                    className="px-4 py-2.5 text-base text-gray-700 hover:text-purple-600 font-medium transition-all duration-200 rounded-full hover:bg-purple-50"
-                  >
-                    Tarifs
-                  </a>
-
-                  {/* Ressources Dropdown */}
-                  <div
-                    className="relative"
-                    onMouseEnter={() => setRessourcesOpen(true)}
-                    onMouseLeave={() => setRessourcesOpen(false)}
-                  >
-                    <button className="px-4 py-2.5 text-base text-gray-700 hover:text-purple-600 font-medium transition-all duration-200 rounded-full hover:bg-purple-50 flex items-center gap-1.5">
-                      Ressources
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {ressourcesOpen && (
-                      <div className="absolute top-full left-0 mt-2 w-60 bg-white rounded-2xl shadow-2xl py-3 border border-gray-100">
-                        <a
-                          href="/#about"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-purple-50 transition-colors rounded-xl mx-2"
-                        >
-                          À propos
-                        </a>
-                        <a
-                          href="/#contact"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-purple-50 transition-colors rounded-xl mx-2"
-                        >
-                          Contact
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Boutons connexion/inscription */}
-              <div className="flex items-center gap-3">
-                <Link
-                  to="/login"
-                  className="px-5 py-2.5 text-base text-gray-700 hover:text-purple-600 font-medium transition-all duration-200 rounded-full hover:bg-purple-50"
-                >
-                  Connexion
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-full text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                >
-                  S'inscrire
-                </Link>
-              </div>
-            </div>
-          </div>
-        </nav>
-      </div>
-
-      {/* Spacer pour compenser la nav fixe */}
-      <div className="h-24"></div>
+      <PublicNavbar variant="purple" />
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 relative overflow-hidden">

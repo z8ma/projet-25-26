@@ -15,6 +15,7 @@ router.delete('/conversations/:id', aiController.deleteConversation.bind(aiContr
 
 // Messages
 router.post('/conversations/:id/messages', aiController.addMessage.bind(aiController));
+router.put('/conversations/:id/edit-message', aiController.editLastMessage.bind(aiController));
 router.put('/conversations/:id/title', aiController.updateTitle.bind(aiController));
 router.put('/conversations/:id/complete', aiController.completeConversation.bind(aiController));
 

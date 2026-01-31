@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import PublicNavbar from '../components/PublicNavbar';
 
 // Placeholder images - replace with actual image paths when available
 const creativeWork = 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&h=600&fit=crop';
@@ -9,9 +10,6 @@ const overheadTeam = 'https://images.unsplash.com/photo-1543269865-cbf427effbad?
 const digitalAnimation = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&h=600&fit=crop';
 
 export default function LandingPage() {
-  const [solutionsOpen, setSolutionsOpen] = useState(false);
-  const [ressourcesOpen, setRessourcesOpen] = useState(false);
-
   // Intersection Observer pour les animations au scroll
   useEffect(() => {
     const observerOptions = {
@@ -55,143 +53,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 animate-gradient">
-      {/* Navigation - Détachée et arrondie */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-6xl px-4">
-        <nav className="bg-white/95 backdrop-blur-lg rounded-full shadow-2xl border border-gray-100">
-          <div className="px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              {/* Logo et menu gauche */}
-              <div className="flex items-center gap-8">
-                <Link to="/" className="flex items-center group">
-                  <h1 className="text-3xl font-bold logo-gradient transition-transform duration-300 hover:scale-110">
-                    JUNY
-                  </h1>
-                </Link>
-
-                <div className="hidden md:flex items-center gap-2">
-                  {/* Solutions Dropdown */}
-                  <div
-                    className="relative"
-                    onMouseEnter={() => setSolutionsOpen(true)}
-                    onMouseLeave={() => setSolutionsOpen(false)}
-                  >
-                    <button className="px-4 py-2.5 text-base text-gray-700 hover:text-primary-600 font-medium transition-all duration-200 rounded-full hover:bg-orange-50 flex items-center gap-1.5">
-                      Solutions
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {solutionsOpen && (
-                      <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl py-3 border border-gray-100">
-                        <a
-                          href="#solutions"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-orange-50 transition-colors rounded-xl mx-2"
-                        >
-                          <div className="font-semibold text-gray-900">Matching IA</div>
-                          <div className="text-sm text-gray-500">Trouvez le professionnel parfait</div>
-                        </a>
-                        <a
-                          href="#how-it-works"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-orange-50 transition-colors rounded-xl mx-2"
-                        >
-                          <div className="font-semibold text-gray-900">Brainstorming IA</div>
-                          <div className="text-sm text-gray-500">Affinez votre projet avec l'IA</div>
-                        </a>
-                        <a
-                          href="#solutions"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-orange-50 transition-colors rounded-xl mx-2"
-                        >
-                          <div className="font-semibold text-gray-900">Gestion de projet</div>
-                          <div className="text-sm text-gray-500">Suivez vos collaborations</div>
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Professionnels */}
-                  <Link
-                    to="/professionnels"
-                    className="px-4 py-2.5 text-base text-gray-700 hover:text-primary-600 font-medium transition-all duration-200 rounded-full hover:bg-orange-50"
-                  >
-                    Professionnels
-                  </Link>
-
-                  {/* Tarifs */}
-                  <a
-                    href="#pricing"
-                    className="px-4 py-2.5 text-base text-gray-700 hover:text-primary-600 font-medium transition-all duration-200 rounded-full hover:bg-orange-50"
-                  >
-                    Tarifs
-                  </a>
-
-                  {/* Ressources Dropdown */}
-                  <div
-                    className="relative"
-                    onMouseEnter={() => setRessourcesOpen(true)}
-                    onMouseLeave={() => setRessourcesOpen(false)}
-                  >
-                    <button className="px-4 py-2.5 text-base text-gray-700 hover:text-primary-600 font-medium transition-all duration-200 rounded-full hover:bg-orange-50 flex items-center gap-1.5">
-                      Ressources
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {ressourcesOpen && (
-                      <div className="absolute top-full left-0 mt-2 w-60 bg-white rounded-2xl shadow-2xl py-3 border border-gray-100">
-                        <a
-                          href="#about"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-orange-50 transition-colors rounded-xl mx-2"
-                        >
-                          À propos
-                        </a>
-                        <a
-                          href="#contact"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-orange-50 transition-colors rounded-xl mx-2"
-                        >
-                          Contact
-                        </a>
-                        <a
-                          href="#"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-orange-50 transition-colors rounded-xl mx-2"
-                        >
-                          Blog
-                        </a>
-                        <a
-                          href="#"
-                          className="block px-5 py-3 text-base text-gray-700 hover:bg-orange-50 transition-colors rounded-xl mx-2"
-                        >
-                          Centre d'aide
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Boutons connexion/inscription */}
-              <div className="flex items-center gap-3">
-                <Link
-                  to="/login"
-                  className="px-5 py-2.5 text-base text-gray-700 hover:text-primary-600 font-medium transition-all duration-200 rounded-full hover:bg-orange-50"
-                >
-                  Connexion
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-full text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                >
-                  S'inscrire
-                </Link>
-              </div>
-            </div>
-          </div>
-        </nav>
-      </div>
-
-      {/* Spacer pour compenser la nav fixe */}
-      <div className="h-24"></div>
+      <PublicNavbar variant="primary" />
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 relative overflow-hidden">
@@ -289,7 +151,7 @@ export default function LandingPage() {
 
             {/* Carte Temps - Bleu */}
             <div className="animate-on-scroll group p-6 md:p-8 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border-2 border-blue-200 hover:border-blue-500 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 cursor-pointer opacity-0">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-lg animate-float" style={{animationDelay: '0.5s'}}>
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-lg animate-float" style={{ animationDelay: '0.5s' }}>
                 <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -302,7 +164,7 @@ export default function LandingPage() {
 
             {/* Carte Matching - Violet */}
             <div className="animate-on-scroll group p-6 md:p-8 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl border-2 border-purple-200 hover:border-purple-500 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 cursor-pointer opacity-0">
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-lg animate-float" style={{animationDelay: '1s'}}>
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-lg animate-float" style={{ animationDelay: '1s' }}>
                 <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -437,14 +299,14 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 max-w-7xl mx-auto mb-8 mt-8 px-2 sm:px-0">
             {/* Pro Plan - Featured - Premier sur mobile */}
             <div className="animate-on-scroll group featured-card bg-gradient-to-br from-orange-50 to-white rounded-2xl p-4 sm:p-5 pt-7 sm:pt-8 border-2 border-primary-500 hover:border-primary-600 hover:shadow-2xl hover:-translate-y-3 transition-all duration-300 relative sm:scale-105 opacity-0 overflow-visible order-first sm:order-3">
-              <div className="absolute top-4 right-4 w-12 h-12 sm:w-14 sm:h-14 bg-primary-100 rounded-full blur-xl opacity-60 animate-float" style={{animationDelay: '0.5s'}}></div>
+              <div className="absolute top-4 right-4 w-12 h-12 sm:w-14 sm:h-14 bg-primary-100 rounded-full blur-xl opacity-60 animate-float" style={{ animationDelay: '0.5s' }}></div>
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20">
                 <span className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg animate-pulse-glow whitespace-nowrap">
                   RECOMMANDÉ
                 </span>
               </div>
               <div className="flex items-center gap-2 mb-2 sm:mb-3 mt-1 relative z-10">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center animate-float" style={{animationDelay: '0.3s'}}>
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center animate-float" style={{ animationDelay: '0.3s' }}>
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                   </svg>
@@ -452,7 +314,7 @@ export default function LandingPage() {
                 <h3 className="text-base sm:text-lg font-bold text-gray-900">PRO</h3>
               </div>
               <div className="mb-3 sm:mb-4">
-                <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">39€</span>
+                <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">49€</span>
                 <span className="text-gray-500 text-xs ml-1">/ mois</span>
               </div>
               <ul className="text-left space-y-1.5 sm:space-y-2 mb-4 sm:mb-5">
@@ -571,9 +433,9 @@ export default function LandingPage() {
 
             {/* Premium Plan */}
             <div className="animate-on-scroll group premium-card bg-white rounded-2xl p-4 sm:p-5 border-2 border-purple-200 hover:border-purple-500 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 opacity-0 relative overflow-visible order-4">
-              <div className="absolute top-4 right-4 w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-full blur-xl opacity-50 animate-float" style={{animationDelay: '1s'}}></div>
+              <div className="absolute top-4 right-4 w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-full blur-xl opacity-50 animate-float" style={{ animationDelay: '1s' }}></div>
               <div className="flex items-center gap-2 mb-2 sm:mb-3 relative z-10">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center animate-float" style={{animationDelay: '0.7s'}}>
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center animate-float" style={{ animationDelay: '0.7s' }}>
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                   </svg>
@@ -581,7 +443,7 @@ export default function LandingPage() {
                 <h3 className="text-base sm:text-lg font-bold text-gray-900">PREMIUM</h3>
               </div>
               <div className="mb-3 sm:mb-4">
-                <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent">79€</span>
+                <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-700 bg-clip-text text-transparent">99€</span>
                 <span className="text-gray-500 text-xs ml-1">/ mois</span>
               </div>
               <ul className="text-left space-y-1.5 sm:space-y-2 mb-4 sm:mb-5">
@@ -840,8 +702,8 @@ export default function LandingPage() {
         {/* Éléments flottants en arrière-plan */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full blur-3xl animate-float"></div>
-          <div className="absolute top-20 right-20 w-40 h-40 bg-purple-400/20 rounded-full blur-3xl animate-float" style={{animationDelay: '1s'}}></div>
-          <div className="absolute bottom-10 left-1/4 w-36 h-36 bg-orange-400/20 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
+          <div className="absolute top-20 right-20 w-40 h-40 bg-purple-400/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute bottom-10 left-1/4 w-36 h-36 bg-orange-400/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
         </div>
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">

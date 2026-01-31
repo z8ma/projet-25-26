@@ -9,8 +9,12 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import CreatorProfile from './pages/CreatorProfile';
 import ProfessionalProfile from './pages/ProfessionalProfile';
-import ProfessionalProjects from './pages/ProfessionalProjects';
+import CreatorProjects from './pages/CreatorProjects';
+import Messages from './pages/Messages';
 import Brainstorming from './pages/Brainstorming';
+import Settings from './pages/Settings';
+import SavedProfessionals from './pages/SavedProfessionals';
+import ExploreProfessionals from './pages/ExploreProfessionals';
 
 function App() {
   const { loadUser, token, user } = useAuthStore();
@@ -34,9 +38,13 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile/creator" element={<CreatorProfile />} />
         <Route path="/profile/professional" element={<ProfessionalProfile />} />
-        <Route path="/professional/projects" element={<ProfessionalProjects />} />
+        <Route path="/projects" element={<CreatorProjects />} />
+        <Route path="/messages" element={<Messages />} />
         <Route path="/brainstorming" element={<Brainstorming />} />
         <Route path="/brainstorming/:conversationId" element={<Brainstorming />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/favorites" element={<SavedProfessionals />} />
+        <Route path="/explore" element={<ExploreProfessionals />} />
       </Routes>
     </BrowserRouter>
   );

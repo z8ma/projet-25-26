@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { aiApi, matchingApi, ratingApi } from '../services/api';
+import { aiApi, matchingApi, ratingApi, subscriptionApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
+import FavoriteButton from '../components/FavoriteButton';
+import TypingText, { highlightText } from '../components/TypingText';
 
 export default function Brainstorming() {
   const { user } = useAuthStore();
@@ -47,6 +49,19 @@ export default function Brainstorming() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  // Typing animation state
+  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
+
+  // Subscription state
+  const [subscription, setSubscription] = useState<any>(null);
+
+  // Edit message state
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+  const [editMessageContent, setEditMessageContent] = useState('');
+
+  // Check if user has paid subscription (Starter or higher)
+  const hasPaidSubscription = subscription?.plan?.name === 'Starter' || subscription?.plan?.name === 'Premium';
+
   useEffect(() => {
     if (!user || user.role !== 'CREATOR') {
       navigate('/dashboard');
@@ -65,6 +80,22 @@ export default function Brainstorming() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Load subscription info
+  useEffect(() => {
+    const loadSubscription = async () => {
+      try {
+        const response = await subscriptionApi.getCurrent();
+        if (response.success) {
+          setSubscription(response.data);
+        }
+      } catch {
+        // No subscription = free user
+        setSubscription(null);
+      }
+    };
+    loadSubscription();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -176,8 +207,15 @@ export default function Brainstorming() {
       });
 
       if (response.success) {
-        setMessages(response.data.conversation.messages);
+        const newMessages = response.data.conversation.messages;
+        setMessages(newMessages);
         setCurrentConversation(response.data.conversation);
+
+        // Trigger typing animation for the last AI message
+        const lastMessageIndex = newMessages.length - 1;
+        if (newMessages[lastMessageIndex]?.role === 'assistant') {
+          setTypingMessageIndex(lastMessageIndex);
+        }
 
         // Update readiness state
         if (response.data.readiness) {
@@ -189,6 +227,63 @@ export default function Brainstorming() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Start editing last message
+  const startEditMessage = (index: number, content: string) => {
+    if (!hasPaidSubscription) return;
+    setEditingMessageIndex(index);
+    setEditMessageContent(content);
+  };
+
+  // Cancel editing
+  const cancelEditMessage = () => {
+    setEditingMessageIndex(null);
+    setEditMessageContent('');
+  };
+
+  // Submit edited message
+  const submitEditMessage = async () => {
+    if (!editMessageContent.trim() || !currentConversation || loading) return;
+
+    setLoading(true);
+    try {
+      const response = await aiApi.editLastMessage(currentConversation.id, {
+        newContent: editMessageContent,
+      });
+
+      if (response.success) {
+        const newMessages = response.data.conversation.messages;
+        setMessages(newMessages);
+        setCurrentConversation(response.data.conversation);
+        setEditingMessageIndex(null);
+        setEditMessageContent('');
+
+        // Trigger typing animation for the new AI response
+        const lastMessageIndex = newMessages.length - 1;
+        if (newMessages[lastMessageIndex]?.role === 'assistant') {
+          setTypingMessageIndex(lastMessageIndex);
+        }
+
+        if (response.data.readiness) {
+          setReadiness(response.data.readiness);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error editing message:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Find the last user message index
+  const getLastUserMessageIndex = () => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        return i;
+      }
+    }
+    return -1;
   };
 
   const handleGenerateMatches = () => {
@@ -541,53 +636,136 @@ export default function Brainstorming() {
                   </div>
                 </div>
 
-                {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-gray-50/50 to-white">
+                {/* Messages Area - Clean Claude-like design */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-white">
                   {messages.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
-                      <div className="text-center max-w-md">
-                        <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                          <svg className="w-10 h-10 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                          </svg>
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/20">
+                          <span className="text-2xl font-bold text-white">J</span>
                         </div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">Commencez votre brainstorming!</h3>
-                        <p className="text-gray-600">
-                          Décrivez votre projet et je vous aiderai à le développer et trouver les meilleurs professionnels.
+                        <h3 className="text-2xl font-semibold text-gray-900 mb-2">Salut! Je suis JUNY</h3>
+                        <p className="text-gray-500 text-lg">
+                          Parle-moi de ton projet et je t'aiderai à le concrétiser.
                         </p>
                       </div>
                     </div>
                   ) : (
-                    messages.map((msg: any, index: number) => (
-                      <div
-                        key={index}
-                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-[85%] sm:max-w-2xl px-4 py-3 rounded-2xl ${
-                            msg.role === 'user'
-                              ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-br-md'
-                              : 'bg-white border border-gray-100 text-gray-800 shadow-sm rounded-bl-md'
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap text-sm sm:text-base">{msg.content}</p>
-                          <p className={`text-xs mt-2 ${msg.role === 'user' ? 'text-white/70' : 'text-gray-400'}`}>
-                            {new Date(msg.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
+                    <div className="space-y-8">
+                      {messages.map((msg: any, index: number) => (
+                        <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                          {/* Avatar */}
+                          {msg.role === 'assistant' ? (
+                            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center shadow-sm">
+                              <span className="text-base font-bold text-white">J</span>
+                            </div>
+                          ) : (
+                            <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
+                              <span className="text-base font-medium text-gray-600">
+                                {user?.creator?.companyName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Message content */}
+                          <div className={`flex-1 ${msg.role === 'user' ? 'text-right' : ''}`}>
+                            {msg.role === 'user' ? (
+                              <div className="inline-block text-left max-w-[85%]">
+                                {/* Edit mode */}
+                                {editingMessageIndex === index ? (
+                                  <div className="bg-gray-100 rounded-2xl px-5 py-4">
+                                    <textarea
+                                      value={editMessageContent}
+                                      onChange={(e) => setEditMessageContent(e.target.value)}
+                                      className="w-full min-w-[300px] bg-white border border-gray-200 rounded-xl px-4 py-3 text-base sm:text-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
+                                      rows={3}
+                                      autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2 mt-3">
+                                      <button
+                                        onClick={cancelEditMessage}
+                                        className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                                      >
+                                        Annuler
+                                      </button>
+                                      <button
+                                        onClick={submitEditMessage}
+                                        disabled={loading || !editMessageContent.trim()}
+                                        className="px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                                      >
+                                        {loading ? 'Envoi...' : 'Envoyer'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="group relative">
+                                    <div className="bg-gray-100 rounded-2xl px-5 py-4">
+                                      <p className="text-gray-800 text-base sm:text-lg whitespace-pre-wrap">
+                                        {msg.content}
+                                      </p>
+                                      {msg.edited && (
+                                        <span className="text-xs text-gray-400 mt-1 block">(modifié)</span>
+                                      )}
+                                    </div>
+                                    {/* Edit button - only for last user message */}
+                                    {index === getLastUserMessageIndex() && !loading && typingMessageIndex === null && (
+                                      <div className="absolute -bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {hasPaidSubscription ? (
+                                          <button
+                                            onClick={() => startEditMessage(index, msg.content)}
+                                            className="p-1.5 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors"
+                                            title="Modifier ce message"
+                                          >
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                          </button>
+                                        ) : (
+                                          <Link
+                                            to="/pricing"
+                                            className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-600 rounded-lg text-xs font-medium hover:bg-orange-200 transition-colors"
+                                            title="Passer à Starter pour modifier"
+                                          >
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            Starter
+                                          </Link>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-gray-700 text-base sm:text-lg leading-relaxed">
+                                {index === typingMessageIndex ? (
+                                  <TypingText
+                                    text={msg.content}
+                                    speed={12}
+                                    onComplete={() => setTypingMessageIndex(null)}
+                                    highlightKeywords={true}
+                                  />
+                                ) : (
+                                  <span className="whitespace-pre-wrap">{highlightText(msg.content)}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                   {loading && (
-                    <div className="flex justify-start">
-                      <div className="bg-white border border-gray-100 shadow-sm rounded-2xl rounded-bl-md px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-1">
-                            <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                          </div>
-                          <span className="text-sm text-gray-500">L'IA réfléchit...</span>
+                    <div className="mt-8">
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center shadow-sm">
+                          <span className="text-base font-bold text-white">J</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 pt-3">
+                          <span className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                         </div>
                       </div>
                     </div>
@@ -595,26 +773,25 @@ export default function Brainstorming() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input Area */}
-                <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-white">
-                  <form onSubmit={sendMessage} className="flex gap-3">
+                {/* Input Area - Full width design */}
+                <div className="px-4 sm:px-6 lg:px-8 py-4 border-t border-gray-100 bg-white">
+                  <form onSubmit={sendMessage} className="relative">
                     <input
                       type="text"
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="Décrivez votre projet..."
-                      className="flex-1 px-4 py-3 bg-gray-100 border-0 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500 transition-all text-sm sm:text-base"
+                      placeholder="Décris ton projet..."
+                      className="w-full px-5 py-4 pr-14 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:border-orange-300 focus:ring-2 focus:ring-orange-100 transition-all text-base sm:text-lg"
                       disabled={loading}
                     />
                     <button
                       type="submit"
                       disabled={loading || !inputMessage.trim()}
-                      className="px-4 sm:px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-500/30"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 text-gray-400 hover:text-orange-500 disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"
                     >
-                      <svg className="w-5 h-5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
-                      <span className="hidden sm:inline">Envoyer</span>
                     </button>
                   </form>
                 </div>
@@ -653,80 +830,126 @@ export default function Brainstorming() {
                 <p className="text-sm text-gray-500 mt-1">{matches.length} résultat{matches.length > 1 ? 's' : ''}</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-                {matches.map((match: any) => (
-                  <div key={match.id} className="p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
+              {/* Free user upgrade CTA */}
+              {!hasPaidSubscription ? (
+                <div className="flex-1 flex flex-col">
+                  {/* Blurred preview of first match */}
+                  <div className="p-4 relative">
+                    <div className="blur-sm pointer-events-none">
+                      <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {match.professional.firstName[0]}
+                          {matches[0]?.professional?.firstName?.[0] || '?'}
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 text-sm">
-                            {match.professional.firstName} {match.professional.lastName}
-                          </h4>
-                          <p className="text-xs text-gray-500">
-                            {match.professional.professions[0]?.profession?.name}
-                          </p>
+                          <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                          <div className="h-3 w-16 bg-gray-100 rounded mt-1"></div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-green-600">{match.matchScore}%</div>
+                      <div className="h-3 w-full bg-gray-100 rounded mb-2"></div>
+                      <div className="h-3 w-3/4 bg-gray-100 rounded"></div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/80 to-white"></div>
+                  </div>
+
+                  {/* Upgrade CTA */}
+                  <div className="p-6 text-center flex-1 flex flex-col justify-center">
+                    <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      {matches.length} créatif{matches.length > 1 ? 's' : ''} trouvé{matches.length > 1 ? 's' : ''}!
+                    </h4>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Passe à Starter pour voir leurs profils, les contacter et obtenir le résumé de ton projet.
+                    </p>
+                    <Link
+                      to="/pricing"
+                      className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-orange-500/30"
+                    >
+                      Passer à Starter
+                    </Link>
+                    <p className="text-xs text-gray-400 mt-3">À partir de 9€/mois</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+                  {matches.map((match: any) => (
+                    <div key={match.id} className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
+                            {match.professional.firstName[0]}
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900 text-sm">
+                              {match.professional.firstName} {match.professional.lastName}
+                            </h4>
+                            <p className="text-xs text-gray-500">
+                              {match.professional.professions[0]?.profession?.name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <FavoriteButton professionalId={match.professional.id} size="sm" />
+                          <div className="text-lg font-bold text-green-600">{match.matchScore}%</div>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        {getProjectStatusBadge(match.projectStatus)}
+                      </div>
+
+                      {match.reasoning && (
+                        <p className="text-xs text-gray-600 mb-3 line-clamp-2">{match.reasoning}</p>
+                      )}
+
+                      <div className="flex gap-2 text-xs text-gray-500 mb-3">
+                        {match.professional.experienceYears && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {match.professional.experienceYears} ans
+                          </span>
+                        )}
+                        {match.professional.hourlyRate && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {match.professional.hourlyRate}€/h
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => openContactModal(match)}
+                          disabled={match.status === 'CONTACTED'}
+                          className={`w-full px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                            match.status === 'CONTACTED'
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-lg shadow-primary-500/30'
+                          }`}
+                        >
+                          {match.status === 'CONTACTED' ? 'Déjà contacté' : 'Contacter'}
+                        </button>
+
+                        {match.projectStatus === 'COMPLETED' && !match.rating && (
+                          <button
+                            onClick={() => openRatingModal(match)}
+                            className="w-full px-3 py-2 rounded-xl text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-all"
+                          >
+                            Noter ce professionnel
+                          </button>
+                        )}
                       </div>
                     </div>
-
-                    <div className="mb-3">
-                      {getProjectStatusBadge(match.projectStatus)}
-                    </div>
-
-                    {match.reasoning && (
-                      <p className="text-xs text-gray-600 mb-3 line-clamp-2">{match.reasoning}</p>
-                    )}
-
-                    <div className="flex gap-2 text-xs text-gray-500 mb-3">
-                      {match.professional.experienceYears && (
-                        <span className="flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {match.professional.experienceYears} ans
-                        </span>
-                      )}
-                      {match.professional.hourlyRate && (
-                        <span className="flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {match.professional.hourlyRate}€/h
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => openContactModal(match)}
-                        disabled={match.status === 'CONTACTED'}
-                        className={`w-full px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                          match.status === 'CONTACTED'
-                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-lg shadow-primary-500/30'
-                        }`}
-                      >
-                        {match.status === 'CONTACTED' ? 'Déjà contacté' : 'Contacter'}
-                      </button>
-
-                      {match.projectStatus === 'COMPLETED' && !match.rating && (
-                        <button
-                          onClick={() => openRatingModal(match)}
-                          className="w-full px-3 py-2 rounded-xl text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-all"
-                        >
-                          Noter ce professionnel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -751,71 +974,98 @@ export default function Brainstorming() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-              {matches.map((match: any) => (
-                <div key={match.id} className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                        {match.professional.firstName[0]}
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">
-                          {match.professional.firstName} {match.professional.lastName}
-                        </h4>
-                        <p className="text-sm text-gray-500">
-                          {match.professional.professions[0]?.profession?.name}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xl font-bold text-green-600">{match.matchScore}%</div>
-                      <div className="text-xs text-gray-500">Match</div>
-                    </div>
-                  </div>
-
-                  <div className="mb-3">
-                    {getProjectStatusBadge(match.projectStatus)}
-                  </div>
-
-                  {match.reasoning && (
-                    <p className="text-sm text-gray-600 mb-3">{match.reasoning}</p>
-                  )}
-
-                  <div className="flex gap-4 text-sm text-gray-500 mb-4">
-                    {match.professional.experienceYears && (
-                      <span>{match.professional.experienceYears} ans d'exp.</span>
-                    )}
-                    {match.professional.hourlyRate && (
-                      <span>{match.professional.hourlyRate}€/h</span>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openContactModal(match)}
-                      disabled={match.status === 'CONTACTED'}
-                      className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        match.status === 'CONTACTED'
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white'
-                      }`}
-                    >
-                      {match.status === 'CONTACTED' ? 'Déjà contacté' : 'Contacter'}
-                    </button>
-
-                    {match.projectStatus === 'COMPLETED' && !match.rating && (
-                      <button
-                        onClick={() => openRatingModal(match)}
-                        className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-yellow-100 text-yellow-700"
-                      >
-                        Noter
-                      </button>
-                    )}
-                  </div>
+            {/* Free user upgrade CTA */}
+            {!hasPaidSubscription ? (
+              <div className="flex-1 p-6 text-center flex flex-col justify-center items-center">
+                <div className="w-20 h-20 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-10 h-10 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
                 </div>
-              ))}
-            </div>
+                <h4 className="text-xl font-semibold text-gray-900 mb-2">
+                  {matches.length} créatif{matches.length > 1 ? 's' : ''} trouvé{matches.length > 1 ? 's' : ''}!
+                </h4>
+                <p className="text-gray-500 mb-6 max-w-xs">
+                  Passe à Starter pour voir leurs profils, les contacter et obtenir le résumé de ton projet.
+                </p>
+                <Link
+                  to="/pricing"
+                  className="w-full max-w-xs px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-orange-500/30 text-center"
+                >
+                  Passer à Starter
+                </Link>
+                <p className="text-sm text-gray-400 mt-3">À partir de 9€/mois</p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+                {matches.map((match: any) => (
+                  <div key={match.id} className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                          {match.professional.firstName[0]}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">
+                            {match.professional.firstName} {match.professional.lastName}
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            {match.professional.professions[0]?.profession?.name}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <FavoriteButton professionalId={match.professional.id} size="sm" />
+                        <div className="text-right">
+                          <div className="text-xl font-bold text-green-600">{match.matchScore}%</div>
+                          <div className="text-xs text-gray-500">Match</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      {getProjectStatusBadge(match.projectStatus)}
+                    </div>
+
+                    {match.reasoning && (
+                      <p className="text-sm text-gray-600 mb-3">{match.reasoning}</p>
+                    )}
+
+                    <div className="flex gap-4 text-sm text-gray-500 mb-4">
+                      {match.professional.experienceYears && (
+                        <span>{match.professional.experienceYears} ans d'exp.</span>
+                      )}
+                      {match.professional.hourlyRate && (
+                        <span>{match.professional.hourlyRate}€/h</span>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openContactModal(match)}
+                        disabled={match.status === 'CONTACTED'}
+                        className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                          match.status === 'CONTACTED'
+                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white'
+                        }`}
+                      >
+                        {match.status === 'CONTACTED' ? 'Déjà contacté' : 'Contacter'}
+                      </button>
+
+                      {match.projectStatus === 'COMPLETED' && !match.rating && (
+                        <button
+                          onClick={() => openRatingModal(match)}
+                          className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-yellow-100 text-yellow-700"
+                        >
+                          Noter
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

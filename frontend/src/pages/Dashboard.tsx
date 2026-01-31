@@ -1,29 +1,92 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { aiApi, matchingApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
+import CreditHistoryModal from '../components/CreditHistoryModal';
+
+interface Match {
+  id: string;
+  matchScore: number;
+  status: string;
+  professional: {
+    firstName: string;
+    lastName: string;
+    professions: { profession: { name: string } }[];
+  };
+}
+
+interface Conversation {
+  id: string;
+  status: string;
+  aiCreditsUsed: number;
+  matches: Match[];
+}
+
+interface MessageConversation {
+  unreadCount: number;
+}
 
 export default function Dashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messageConversations, setMessageConversations] = useState<MessageConversation[]>([]);
+  const [showCreditHistory, setShowCreditHistory] = useState(false);
 
   useEffect(() => {
     if (!user) {
       navigate('/login');
     }
-    // Redirect professionals to their own dashboard
+    // Redirect professionals to their profile
     if (user?.role === 'PROFESSIONAL') {
-      navigate('/professional/projects');
+      navigate('/profile/professional');
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [convResponse, msgResponse] = await Promise.all([
+          aiApi.getConversations(),
+          matchingApi.getConversations(),
+        ]);
+        setConversations(convResponse.data || []);
+        setMessageConversations(msgResponse.data || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.role === 'CREATOR') {
+      fetchData();
+    }
+  }, [user]);
+
   if (!user || user.role === 'PROFESSIONAL') return null;
+
+  // Calculate real stats
+  const activeProjects = conversations.filter(c => c.status === 'IN_PROGRESS' || c.status === 'COMPLETED').length;
+  const totalMatches = conversations.reduce((acc, c) => acc + (c.matches?.length || 0), 0);
+  const totalCreditsUsed = conversations.reduce((acc, c) => acc + (c.aiCreditsUsed || 0), 0);
+  const unreadMessages = messageConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  const totalMessages = messageConversations.length;
+
+  // Get recent matches (last 3)
+  const recentMatches: Match[] = conversations
+    .flatMap(c => c.matches || [])
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 3);
 
   const stats = [
     {
-      label: 'Projets actifs',
-      value: '3',
-      change: '+2 ce mois',
+      label: 'Projets',
+      value: loading ? '...' : String(activeProjects),
+      change: loading ? '' : `${conversations.filter(c => c.status === 'IN_PROGRESS').length} en cours`,
       changeType: 'positive',
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -34,8 +97,8 @@ export default function Dashboard() {
     },
     {
       label: 'Matchs IA',
-      value: '12',
-      change: '5 nouveaux',
+      value: loading ? '...' : String(totalMatches),
+      change: loading ? '' : `${conversations.filter(c => c.matches?.some(m => m.status === 'ACCEPTED')).length} acceptés`,
       changeType: 'positive',
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -46,9 +109,9 @@ export default function Dashboard() {
     },
     {
       label: 'Messages',
-      value: '8',
-      change: '3 non lus',
-      changeType: 'neutral',
+      value: loading ? '...' : String(totalMessages),
+      change: loading ? '' : (unreadMessages > 0 ? `${unreadMessages} non lu${unreadMessages > 1 ? 's' : ''}` : 'Tout lu'),
+      changeType: unreadMessages > 0 ? 'neutral' : 'positive',
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -58,7 +121,7 @@ export default function Dashboard() {
     },
     {
       label: 'Crédits IA',
-      value: '47',
+      value: loading ? '...' : String(Math.max(0, 100 - totalCreditsUsed)),
       change: 'restants',
       changeType: 'neutral',
       icon: (
@@ -67,13 +130,8 @@ export default function Dashboard() {
         </svg>
       ),
       color: 'purple',
+      onClick: () => setShowCreditHistory(true),
     },
-  ];
-
-  const recentMatches = [
-    { name: 'Sophie Martin', role: 'Vidéaste', score: 95, avatar: 'S' },
-    { name: 'Lucas Dubois', role: 'Motion Designer', score: 88, avatar: 'L' },
-    { name: 'Emma Bernard', role: 'Photographe', score: 82, avatar: 'E' },
   ];
 
   return (
@@ -81,7 +139,7 @@ export default function Dashboard() {
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-          Bonjour, {user.creator?.companyName || 'Créateur'} ! 👋
+          Bonjour, {user.creator?.companyName || 'Créateur'}
         </h1>
         <p className="text-gray-600">
           Voici un aperçu de votre activité et des opportunités qui vous attendent.
@@ -93,7 +151,8 @@ export default function Dashboard() {
         {stats.map((stat, index) => (
           <div
             key={index}
-            className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+            onClick={stat.onClick}
+            className={`bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ${stat.onClick ? 'cursor-pointer' : ''}`}
           >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
               stat.color === 'primary' ? 'bg-primary-100 text-primary-600' :
@@ -105,11 +164,18 @@ export default function Dashboard() {
             </div>
             <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value}</p>
             <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
-            <p className={`text-xs mt-2 ${
-              stat.changeType === 'positive' ? 'text-green-600' : 'text-gray-400'
-            }`}>
-              {stat.change}
-            </p>
+            <div className="flex items-center gap-1 mt-2">
+              <p className={`text-xs ${
+                stat.changeType === 'positive' ? 'text-green-600' : 'text-gray-400'
+              }`}>
+                {stat.change}
+              </p>
+              {stat.onClick && (
+                <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -182,25 +248,40 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-4">
-            {recentMatches.map((match, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {match.avatar}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate">{match.name}</p>
-                  <p className="text-sm text-gray-500">{match.role}</p>
-                </div>
-                <div className="text-right">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                    {match.score}%
-                  </span>
-                </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-8 h-8 border-2 border-primary-200 border-t-primary-500 rounded-full animate-spin"></div>
               </div>
-            ))}
+            ) : recentMatches.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-gray-500 text-sm">Aucun match pour le moment</p>
+                <p className="text-gray-400 text-xs mt-1">Lancez un brainstorming pour trouver des créatifs</p>
+              </div>
+            ) : (
+              recentMatches.map((match) => (
+                <div
+                  key={match.id}
+                  className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold">
+                    {match.professional.firstName[0]}{match.professional.lastName[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">
+                      {match.professional.firstName} {match.professional.lastName}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {match.professional.professions?.[0]?.profession?.name || 'Créatif'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                      {match.matchScore}%
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <Link
@@ -220,17 +301,22 @@ export default function Dashboard() {
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 mb-1">💡 Conseil du jour</h3>
+            <h3 className="font-semibold text-gray-900 mb-1">Conseil du jour</h3>
             <p className="text-sm text-gray-600">
               Plus votre brief est détaillé, meilleurs seront vos matchs ! Utilisez le brainstorming IA pour structurer votre projet et obtenir des recommandations personnalisées.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Credit History Modal */}
+      {showCreditHistory && (
+        <CreditHistoryModal onClose={() => setShowCreditHistory(false)} />
+      )}
     </CreatorLayout>
   );
 }

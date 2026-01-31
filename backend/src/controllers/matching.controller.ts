@@ -34,6 +34,9 @@ export class MatchingController {
         });
       }
 
+      // Convert creator budget to numeric range for comparison
+      const creatorBudgetMax = this.getBudgetMaxValue(creator.typicalBudget);
+
       // Get all available professionals
       const professionals = await prisma.professional.findMany({
         where: {
@@ -62,8 +65,8 @@ export class MatchingController {
         },
       });
 
-      // Simple matching algorithm (in production, use AI for better matching)
-      const matches = this.calculateMatches(conversation, professionals);
+      // Smart matching algorithm using creator preferences
+      const matches = this.calculateMatches(conversation, professionals, creator, creatorBudgetMax);
 
       // Delete existing matches for this conversation
       await prisma.match.deleteMany({
@@ -259,6 +262,254 @@ export class MatchingController {
     }
   }
 
+  // GET /api/matching/conversations - Get all conversations with messages for creator
+  async getConversations(req: Request, res: Response) {
+    try {
+      const userId = req.userId as string;
+
+      const creator = await prisma.creator.findUnique({
+        where: { userId },
+      });
+
+      if (!creator) {
+        return res.status(404).json({
+          success: false,
+          message: 'Profil créateur non trouvé',
+        });
+      }
+
+      // Get all matches for creator's conversations with messages
+      const matches = await prisma.match.findMany({
+        where: {
+          conversation: {
+            creatorId: creator.id,
+          },
+          status: {
+            in: ['CONTACTED', 'ACCEPTED', 'DECLINED'],
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          conversation: {
+            select: {
+              id: true,
+              projectTitle: true,
+              projectSummary: true,
+              status: true,
+            },
+          },
+          professional: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                },
+              },
+              professions: {
+                include: {
+                  profession: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Get messages for each match
+      const conversationsWithMessages = await Promise.all(
+        matches.map(async (match) => {
+          const messages = await prisma.message.findMany({
+            where: { matchId: match.id },
+            orderBy: { createdAt: 'asc' },
+          });
+
+          const unreadCount = messages.filter(
+            (m) => m.receiverId === userId && !m.isRead
+          ).length;
+
+          return {
+            ...match,
+            messages,
+            unreadCount,
+            lastMessage: messages[messages.length - 1] || null,
+          };
+        })
+      );
+
+      // Sort by last message date
+      conversationsWithMessages.sort((a, b) => {
+        const dateA = a.lastMessage?.createdAt || new Date(0);
+        const dateB = b.lastMessage?.createdAt || new Date(0);
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+
+      res.json({
+        success: true,
+        data: conversationsWithMessages,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la récupération des conversations',
+      });
+    }
+  }
+
+  // GET /api/matching/matches/:matchId/messages - Get messages for a specific match
+  async getMessages(req: Request, res: Response) {
+    try {
+      const { matchId } = req.params;
+      const userId = req.userId as string;
+
+      const match = await prisma.match.findUnique({
+        where: { id: matchId as string },
+        include: {
+          conversation: {
+            include: {
+              creator: true,
+            },
+          },
+          professional: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        return res.status(404).json({
+          success: false,
+          message: 'Conversation non trouvée',
+        });
+      }
+
+      // Verify user is part of this conversation
+      const isCreator = match.conversation.creator.userId === userId;
+      const isProfessional = match.professional.userId === userId;
+
+      if (!isCreator && !isProfessional) {
+        return res.status(403).json({
+          success: false,
+          message: 'Non autorisé',
+        });
+      }
+
+      const messages = await prisma.message.findMany({
+        where: { matchId: matchId as string },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      // Mark messages as read for the current user
+      await prisma.message.updateMany({
+        where: {
+          matchId: matchId as string,
+          receiverId: userId,
+          isRead: false,
+        },
+        data: { isRead: true },
+      });
+
+      res.json({
+        success: true,
+        data: messages,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la récupération des messages',
+      });
+    }
+  }
+
+  // POST /api/matching/matches/:matchId/messages - Send a message
+  async sendMessage(req: Request, res: Response) {
+    try {
+      const { matchId } = req.params;
+      const { content } = req.body;
+      const userId = req.userId as string;
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Le message ne peut pas être vide',
+        });
+      }
+
+      const match = await prisma.match.findUnique({
+        where: { id: matchId as string },
+        include: {
+          conversation: {
+            include: {
+              creator: true,
+            },
+          },
+          professional: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (!match) {
+        return res.status(404).json({
+          success: false,
+          message: 'Conversation non trouvée',
+        });
+      }
+
+      // Verify user is part of this conversation
+      const isCreator = match.conversation.creator.userId === userId;
+      const isProfessional = match.professional.userId === userId;
+
+      if (!isCreator && !isProfessional) {
+        return res.status(403).json({
+          success: false,
+          message: 'Non autorisé',
+        });
+      }
+
+      // Determine receiver
+      const receiverId = isCreator
+        ? match.professional.userId
+        : match.conversation.creator.userId;
+
+      // Create the message
+      const message = await prisma.message.create({
+        data: {
+          senderId: userId,
+          receiverId,
+          matchId: matchId as string,
+          subject: `Re: ${match.conversation.projectTitle}`,
+          content: content.trim(),
+        },
+      });
+
+      // Create notification for receiver
+      const notificationTarget = isCreator ? match.professionalId : match.conversation.creatorId;
+      await NotificationController.createNotification(
+        notificationTarget,
+        'MESSAGE_RECEIVED',
+        'Nouveau message',
+        `Vous avez reçu un nouveau message concernant: ${match.conversation.projectTitle}`,
+        matchId as string
+      );
+
+      res.json({
+        success: true,
+        message: 'Message envoyé avec succès',
+        data: message,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de l\'envoi du message',
+      });
+    }
+  }
+
   // PUT /api/matching/matches/:matchId/project-status - Update project status (for professionals)
   async updateProjectStatus(req: Request, res: Response) {
     try {
@@ -343,16 +594,54 @@ export class MatchingController {
     }
   }
 
-  // Helper: Calculate match scores (simple algorithm, replace with AI in production)
+  // Helper: Convert budget string to max numeric value
+  private getBudgetMaxValue(budget: string | null): number {
+    if (!budget) return Infinity;
+    const budgetMap: Record<string, number> = {
+      '<1k': 1000,
+      '1-5k': 5000,
+      '5-10k': 10000,
+      '10-25k': 25000,
+      '25-50k': 50000,
+      '50k+': 100000,
+    };
+    return budgetMap[budget] || Infinity;
+  }
+
+  // Helper: Map creative type ID to profession keywords
+  private getCreativeTypeKeywords(creativeType: string): string[] {
+    const typeMap: Record<string, string[]> = {
+      'graphiste': ['graphiste', 'graphic', 'designer'],
+      'ux-ui': ['ux', 'ui', 'interface', 'experience'],
+      'motion': ['motion', 'animation', 'animateur'],
+      'illustrateur': ['illustra', 'dessin'],
+      '3d': ['3d', 'three', 'modéli'],
+      'web': ['web', 'développeur', 'frontend'],
+      'branding': ['brand', 'identité', 'marque'],
+      'photo': ['photo', 'photograph'],
+      'video': ['vidéo', 'video', 'réalisateur'],
+      'social': ['social', 'community', 'média'],
+    };
+    return typeMap[creativeType] || [];
+  }
+
+  // Helper: Calculate match scores with creator preferences
   private calculateMatches(
     conversation: any,
-    professionals: any[]
+    professionals: any[],
+    creator: any,
+    creatorBudgetMax: number
   ): Array<{ professionalId: string; score: number; reasoning: string }> {
     const matches: Array<{ professionalId: string; score: number; reasoning: string }> = [];
 
     // Extract keywords from conversation messages
     const messages = (conversation.messages as any[]) || [];
     const conversationText = messages.map((m) => m.content).join(' ').toLowerCase();
+
+    // Get creator preferences
+    const preferredCreatives = creator.preferredCreatives || [];
+    const creatorIndustry = (creator.industry || '').toLowerCase();
+    const companyName = creator.companyName || '';
 
     // Keywords for different professions
     const keywords = {
@@ -367,7 +656,45 @@ export class MatchingController {
       let score = 50; // Base score
       const reasons: string[] = [];
 
-      // Check profession match
+      // === BUDGET COMPATIBILITY CHECK ===
+      const profMinBudget = professional.minimumBudget ? Number(professional.minimumBudget) : 0;
+      if (profMinBudget > 0 && creatorBudgetMax < profMinBudget) {
+        // Skip professionals who require more budget than creator typically spends
+        continue;
+      }
+      if (profMinBudget > 0 && creatorBudgetMax >= profMinBudget) {
+        score += 10;
+        reasons.push('Budget compatible');
+      }
+
+      // === PREFERRED CREATIVE TYPES BONUS ===
+      if (preferredCreatives.length > 0) {
+        for (const pp of professional.professions) {
+          const professionName = pp.profession.name.toLowerCase();
+          for (const preferredType of preferredCreatives) {
+            const typeKeywords = this.getCreativeTypeKeywords(preferredType);
+            if (typeKeywords.some(kw => professionName.includes(kw))) {
+              score += 15;
+              reasons.push(`Type de créatif recherché par ${companyName || 'le client'}`);
+              break;
+            }
+          }
+        }
+      }
+
+      // === INDUSTRY MATCH (via portfolio client types) ===
+      if (creatorIndustry && professional.portfolios) {
+        const hasIndustryExperience = professional.portfolios.some((p: any) => {
+          const clientType = (p.clientType || '').toLowerCase();
+          return clientType.includes(creatorIndustry) || creatorIndustry.includes(clientType);
+        });
+        if (hasIndustryExperience) {
+          score += 10;
+          reasons.push(`Expérience dans le secteur ${creator.industry}`);
+        }
+      }
+
+      // Check profession match with conversation keywords
       for (const pp of professional.professions) {
         const professionName = pp.profession.name.toLowerCase();
 

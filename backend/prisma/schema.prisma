@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 // Users table
@@ -38,10 +38,13 @@ model SubscriptionPlan {
   id               String  @id @default(uuid())
   name             String  @unique
   priceMonthly     Decimal @map("price_monthly")
+  priceYearly      Decimal? @map("price_yearly")
   maxProjectsMonth Int     @map("max_projects_month")
   aiCreditsMonth   Int     @map("ai_credits_month")
   features         Json?
   isActive         Boolean @default(true) @map("is_active")
+  stripePriceIdMonthly  String? @map("stripe_price_id_monthly")
+  stripePriceIdYearly   String? @map("stripe_price_id_yearly")
   createdAt        DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -61,6 +64,10 @@ model Subscription {
   resetDate     DateTime           @map("reset_date")
   startedAt     DateTime           @map("started_at")
   expiresAt     DateTime?          @map("expires_at")
+  billingCycle  String             @default("monthly") @map("billing_cycle") // monthly or yearly
+  stripeCustomerId     String?     @map("stripe_customer_id")
+  stripeSubscriptionId String?     @map("stripe_subscription_id")
+  cancelAtPeriodEnd    Boolean     @default(false) @map("cancel_at_period_end")
   createdAt     DateTime           @default(now()) @map("created_at")
 
   // Relations
@@ -69,6 +76,8 @@ model Subscription {
 
   @@index([userId])
   @@index([status])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
   @@map("subscriptions")
 }
 
@@ -89,9 +98,31 @@ model Creator {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  // Company information
+  industry        String?   // Secteur d'activité
+  companySize     String?   @map("company_size") // Taille entreprise (1-10, 11-50, 51-200, 200+)
+  website         String?   // Site web
+  description     String?   // Description de l'entreprise
+  logoUrl         String?   @map("logo_url") // URL du logo
+
+  // Contact information
+  phone           String?   // Téléphone
+  city            String?   // Ville
+  country         String?   @default("France") // Pays
+
+  // Project preferences
+  typicalBudget       String?   @map("typical_budget") // Budget typique (< 1k, 1-5k, 5-10k, 10-50k, 50k+)
+  preferredCreatives  Json      @default("[]") @map("preferred_creatives") // Types de créatifs recherchés
+
+  // Social links
+  linkedinUrl     String?   @map("linkedin_url")
+  twitterUrl      String?   @map("twitter_url")
+
   // Relations
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversations  AiConversation[]
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations       AiConversation[]
+  notifications       CreatorNotification[]
+  savedProfessionals  SavedProfessional[]
 
   @@map("creators")
 }
@@ -119,16 +150,16 @@ model Professional {
   // ===== NOUVEAUX CHAMPS POUR IA MATCHING =====
 
   // 1. Types de missions recherchées (prioritaire pour le matching)
-  missionTypes        String[] @default([]) @map("mission_types")
+  missionTypes        Json     @default("[]") @map("mission_types")
   otherMissionType    String?  @map("other_mission_type")
 
   // 3. Préférences de projets
-  preferredClientTypes    String[] @default([]) @map("preferred_client_types")
-  preferredCollabTypes    String[] @default([]) @map("preferred_collab_types")
+  preferredClientTypes    Json     @default("[]") @map("preferred_client_types")
+  preferredCollabTypes    Json     @default("[]") @map("preferred_collab_types")
   minimumBudget           Decimal? @map("minimum_budget")
 
   // 4. Ce que le pro NE VEUT PAS faire (exclusions)
-  exclusions              String[] @default([])
+  exclusions              Json     @default("[]")
 
   // Profil IA calculé (embeddings et metadata)
   profileEmbedding        String?  @map("profile_embedding") // JSON string des vecteurs
@@ -142,6 +173,7 @@ model Professional {
   portfolios                Portfolio[]
   matches                   Match[]
   notifications             Notification[]
+  savedBy                   SavedProfessional[]
 
   @@index([isPremium])
   @@index([availability])
@@ -207,7 +239,9 @@ model Portfolio {
   title          String
   description    String?
   imageUrl       String?  @map("image_url")
+  projectUrl     String?  @map("project_url")  // Lien externe (Behance, site perso, etc.)
   projectType    String?  @map("project_type")
+  isFeatured     Boolean  @default(false) @map("is_featured")  // Projet mis en avant
   createdAt      DateTime @default(now()) @map("created_at")
 
   // ===== ENRICHISSEMENT PORTFOLIO POUR IA =====
@@ -401,4 +435,52 @@ enum NotificationType {
   RATING_RECEIVED
 
   @@map("notification_type")
+}
+
+// Notifications for creators
+model CreatorNotification {
+  id          String                   @id @default(uuid())
+  creatorId   String                   @map("creator_id")
+  type        CreatorNotificationType
+  title       String
+  message     String
+  link        String?                  // Optional link to navigate to
+  isRead      Boolean                  @default(false) @map("is_read")
+  createdAt   DateTime                 @default(now()) @map("created_at")
+
+  // Relations
+  creator     Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("creator_notifications")
+}
+
+enum CreatorNotificationType {
+  MATCH_ACCEPTED        // Un pro a accepté le match
+  MESSAGE_RECEIVED      // Nouveau message d'un pro
+  PROJECT_COMPLETED     // Projet terminé
+  CREDITS_LOW           // Crédits bas
+  PROFILE_INCOMPLETE    // Rappel profil incomplet
+
+  @@map("creator_notification_type")
+}
+
+// Saved Professionals (Favoris)
+model SavedProfessional {
+  id             String   @id @default(uuid())
+  creatorId      String   @map("creator_id")
+  professionalId String   @map("professional_id")
+  note           String?  // Note personnelle du créateur
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  creator      Creator      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, professionalId])
+  @@index([creatorId])
+  @@index([professionalId])
+  @@map("saved_professionals")
 }

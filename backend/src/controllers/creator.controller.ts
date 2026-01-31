@@ -42,12 +42,38 @@ export class CreatorController {
   async updateProfile(req: Request, res: Response) {
     try {
       const userId = req.userId;
-      const { companyName } = req.body;
+      const {
+        companyName,
+        industry,
+        companySize,
+        website,
+        description,
+        logoUrl,
+        phone,
+        city,
+        country,
+        typicalBudget,
+        preferredCreatives,
+        linkedinUrl,
+        twitterUrl,
+      } = req.body;
 
       const creator = await prisma.creator.update({
         where: { userId },
         data: {
           companyName,
+          industry,
+          companySize,
+          website,
+          description,
+          logoUrl,
+          phone,
+          city,
+          country,
+          typicalBudget,
+          preferredCreatives,
+          linkedinUrl,
+          twitterUrl,
         },
         include: {
           user: {
