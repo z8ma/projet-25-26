@@ -6,7 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
+url      = env("DATABASE_URL")
 }
 
 // Users table
@@ -119,16 +120,16 @@ model Professional {
   // ===== NOUVEAUX CHAMPS POUR IA MATCHING =====
 
   // 1. Types de missions recherchées (prioritaire pour le matching)
-  missionTypes        String[] @default([]) @map("mission_types")
+  missionTypes        Json?     @map("mission_types")
   otherMissionType    String?  @map("other_mission_type")
 
   // 3. Préférences de projets
-  preferredClientTypes    String[] @default([]) @map("preferred_client_types")
-  preferredCollabTypes    String[] @default([]) @map("preferred_collab_types")
+  preferredClientTypes    Json?     @map("preferred_client_types")
+  preferredCollabTypes    Json?     @map("preferred_collab_types")
   minimumBudget           Decimal? @map("minimum_budget")
 
   // 4. Ce que le pro NE VEUT PAS faire (exclusions)
-  exclusions              String[] @default([])
+  exclusions              Json?     @map("exclusions")
 
   // Profil IA calculé (embeddings et metadata)
   profileEmbedding        String?  @map("profile_embedding") // JSON string des vecteurs
@@ -146,7 +147,6 @@ model Professional {
   @@index([isPremium])
   @@index([availability])
   @@index([averageRating])
-  @@index([missionTypes])
   @@index([profileCompleteness])
   @@map("professionals")
 }
@@ -255,7 +255,7 @@ model AiConversation {
   status          ConversationStatus
   projectTitle    String?             @map("project_title")
   projectSummary  String?             @map("project_summary")
-  messages        Json                @default("[]")
+  messages        Json?
   projectInsights Json?               @map("project_insights")
   aiCreditsUsed   Int                 @default(0) @map("ai_credits_used")
   createdAt       DateTime            @default(now()) @map("created_at")
