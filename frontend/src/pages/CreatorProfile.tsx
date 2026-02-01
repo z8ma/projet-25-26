@@ -326,6 +326,7 @@ export default function CreatorProfile() {
                   <ProfilePictureUpload
                     currentImageUrl={profile.profilePictureUrl}
                     onUploadSuccess={(url) => setProfile({ ...profile, profilePictureUrl: url })}
+                    onRemove={() => setProfile({ ...profile, profilePictureUrl: '' })}
                   />
                 </div>
 

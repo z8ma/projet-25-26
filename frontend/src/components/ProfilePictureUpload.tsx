@@ -4,9 +4,10 @@ import { uploadApi } from '../services/api';
 interface ProfilePictureUploadProps {
   currentImageUrl?: string;
   onUploadSuccess: (url: string) => void;
+  onRemove: () => void;
 }
 
-export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess }: ProfilePictureUploadProps) {
+export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess, onRemove }: ProfilePictureUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -17,8 +18,8 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -42,19 +43,15 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
     reader.readAsDataURL(file);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileSelect(file);
-  };
-
   const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
+    e.preventDefault();
     setPosition({
       x: e.clientX - dragStart.x,
       y: e.clientY - dragStart.y,
@@ -65,35 +62,67 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
     setIsDragging(false);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    setPosition({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y,
+    });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
   const getCroppedImage = (): Promise<Blob> => {
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d')!;
       const img = imageRef.current!;
+      const container = containerRef.current!;
 
-      const size = 400; // Taille finale de l'image
+      const size = 400;
       canvas.width = size;
       canvas.height = size;
 
-      // Créer un cercle
       ctx.beginPath();
       ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
 
-      // Calculer les dimensions et positions
-      const scale = zoom;
-      const imgWidth = img.naturalWidth * scale;
-      const imgHeight = img.naturalHeight * scale;
-      const offsetX = (size - imgWidth) / 2 + position.x;
-      const offsetY = (size - imgHeight) / 2 + position.y;
+      const containerRect = container.getBoundingClientRect();
+      const imgRect = img.getBoundingClientRect();
 
-      // Dessiner l'image
-      ctx.drawImage(img, offsetX, offsetY, imgWidth, imgHeight);
+      const scaleX = img.naturalWidth / imgRect.width;
+      const scaleY = img.naturalHeight / imgRect.height;
+
+      const centerX = containerRect.left + containerRect.width / 2;
+      const centerY = containerRect.top + containerRect.height / 2;
+
+      const imgCenterX = imgRect.left + imgRect.width / 2;
+      const imgCenterY = imgRect.top + imgRect.height / 2;
+
+      const offsetX = (centerX - imgCenterX) * scaleX;
+      const offsetY = (centerY - imgCenterY) * scaleY;
+
+      const drawWidth = img.naturalWidth;
+      const drawHeight = img.naturalHeight;
+
+      const finalX = size / 2 - drawWidth / 2 + offsetX;
+      const finalY = size / 2 - drawHeight / 2 + offsetY;
+
+      ctx.drawImage(img, finalX, finalY, drawWidth, drawHeight);
 
       canvas.toBlob((blob) => {
         resolve(blob!);
-      }, 'image/jpeg', 0.9);
+      }, 'image/jpeg', 0.92);
     });
   };
 
@@ -103,11 +132,9 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
     try {
       setIsUploading(true);
 
-      // Get cropped image
       const croppedBlob = await getCroppedImage();
       const croppedFile = new File([croppedBlob], 'profile-picture.jpg', { type: 'image/jpeg' });
 
-      // Upload to Cloudinary
       const response = await uploadApi.uploadBrainstormingFiles(
         [croppedFile],
         (progress) => setUploadProgress(progress)
@@ -146,14 +173,26 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
           </div>
         )}
 
-        <div>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
-          >
-            {currentImageUrl ? 'Changer la photo' : 'Ajouter une photo'}
-          </button>
+        <div className="flex-1">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
+            >
+              {currentImageUrl ? 'Changer' : 'Ajouter'}
+            </button>
+
+            {currentImageUrl && (
+              <button
+                type="button"
+                onClick={onRemove}
+                className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium"
+              >
+                Supprimer
+              </button>
+            )}
+          </div>
           <p className="text-xs text-gray-500 mt-1">JPG, PNG ou GIF (max. 5MB)</p>
         </div>
 
@@ -168,61 +207,103 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
 
       {/* Editor Modal */}
       {showEditor && previewUrl && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6">
-            <h3 className="text-xl font-semibold mb-4">Ajuster votre photo</h3>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
+            <h3 className="text-xl font-semibold mb-2">Ajuster votre photo</h3>
+            <p className="text-sm text-gray-500 mb-4">Glissez pour repositionner, utilisez le zoom pour ajuster</p>
 
             {/* Preview Area */}
-            <div className="relative bg-gray-100 rounded-xl overflow-hidden mb-4" style={{ height: '400px' }}>
+            <div
+              ref={containerRef}
+              className="relative bg-gray-900 rounded-xl overflow-hidden mb-4 select-none"
+              style={{ height: '400px' }}
+            >
               <div
-                className="absolute inset-0 flex items-center justify-center cursor-move"
+                className="absolute inset-0 flex items-center justify-center cursor-move touch-none"
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
               >
                 <img
                   ref={imageRef}
                   src={previewUrl}
                   alt="Preview"
-                  className="max-w-full max-h-full"
+                  className="max-w-none select-none"
                   style={{
                     transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
                     transition: isDragging ? 'none' : 'transform 0.1s',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
                   }}
                   draggable={false}
                 />
               </div>
 
               {/* Circular Overlay */}
-              <div className="absolute inset-0 pointer-events-none">
-                <svg width="100%" height="100%" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
-                  <defs>
-                    <mask id="circleMask">
-                      <rect width="400" height="400" fill="white" />
-                      <circle cx="200" cy="200" r="180" fill="black" />
-                    </mask>
-                  </defs>
-                  <rect width="400" height="400" fill="black" opacity="0.5" mask="url(#circleMask)" />
-                  <circle cx="200" cy="200" r="180" fill="none" stroke="white" strokeWidth="2" />
-                </svg>
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="relative" style={{ width: '360px', height: '360px' }}>
+                  <svg width="100%" height="100%" viewBox="0 0 360 360">
+                    <defs>
+                      <mask id="circleMask">
+                        <rect width="360" height="360" fill="white" />
+                        <circle cx="180" cy="180" r="180" fill="black" />
+                      </mask>
+                    </defs>
+                    <rect width="360" height="360" fill="black" opacity="0.6" mask="url(#circleMask)" />
+                    <circle cx="180" cy="180" r="179" fill="none" stroke="white" strokeWidth="3" strokeDasharray="8 4" />
+                  </svg>
+                </div>
               </div>
+
+              {/* Instructions */}
+              {!isDragging && (
+                <div className="absolute top-4 left-0 right-0 text-center pointer-events-none">
+                  <div className="inline-block bg-black/50 text-white text-sm px-4 py-2 rounded-full">
+                    Glissez pour repositionner
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Zoom Control */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Zoom: {zoom.toFixed(1)}x
-              </label>
-              <input
-                type="range"
-                min="0.5"
-                max="3"
-                step="0.1"
-                value={zoom}
-                onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="w-full"
-              />
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">Zoom</label>
+                <span className="text-sm text-gray-500">{zoom.toFixed(1)}x</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                  </svg>
+                </button>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="3"
+                  step="0.1"
+                  value={zoom}
+                  onChange={(e) => setZoom(parseFloat(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                />
+                <button
+                  type="button"
+                  onClick={() => setZoom(Math.min(3, zoom + 0.1))}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Upload Progress */}
@@ -242,7 +323,7 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
             )}
 
             {/* Actions */}
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-3">
               <button
                 onClick={() => {
                   setShowEditor(false);
@@ -250,14 +331,14 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
                   setPreviewUrl(null);
                 }}
                 disabled={isUploading}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50 font-medium"
               >
                 Annuler
               </button>
               <button
                 onClick={handleUpload}
                 disabled={isUploading}
-                className="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 font-medium"
+                className="flex-1 px-6 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 font-medium"
               >
                 {isUploading ? 'Upload...' : 'Enregistrer'}
               </button>
@@ -265,9 +346,6 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess 
           </div>
         </div>
       )}
-
-      {/* Hidden canvas for cropping */}
-      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
