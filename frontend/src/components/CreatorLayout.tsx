@@ -230,9 +230,21 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
                   </p>
                   <p className="text-xs text-gray-500">Créateur</p>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {user?.creator?.companyName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
-                </div>
+                {user?.creator?.profilePictureUrl ? (
+                  <img
+                    src={user.creator.profilePictureUrl}
+                    alt="Profile"
+                    className="w-10 h-10 rounded-full object-cover border-2 border-primary-200"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement!.innerHTML = `<div class="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold">${user?.creator?.companyName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}</div>`;
+                    }}
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold">
+                    {user?.creator?.companyName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
               </div>
             </div>
           </div>
