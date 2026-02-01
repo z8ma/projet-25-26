@@ -113,8 +113,8 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
         {/* Sidebar Header */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-gray-100">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">J</span>
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src="/logo.png" alt="JUNY Logo" className="w-full h-full object-contain" />
             </div>
             <span className="text-2xl font-bold logo-gradient">JUNY</span>
           </Link>
