@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import prisma from '../config/prisma.js';
 import { RegisterInput, LoginInput } from '../validators/auth.validator.js';
