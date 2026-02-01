@@ -440,6 +440,50 @@ export default function Brainstorming() {
 
   return (
     <CreatorLayout>
+      {/* Matching Loading Animation */}
+      {matchingLoading && (
+        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-primary-50 via-white to-purple-50 flex items-center justify-center">
+          <div className="text-center">
+            {/* Logo with pulse and blur animation */}
+            <div className="relative mb-8">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-32 h-32 bg-gradient-to-br from-primary-500/20 to-purple-500/20 rounded-full animate-ping"></div>
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-24 h-24 bg-gradient-to-br from-primary-400/30 to-purple-400/30 rounded-full animate-pulse"></div>
+              </div>
+              <div className="relative w-32 h-32 flex items-center justify-center">
+                <img
+                  src="/logo.png"
+                  alt="JUNY"
+                  className="w-20 h-20 object-contain animate-breathing"
+                  style={{
+                    filter: 'drop-shadow(0 4px 20px rgba(255, 121, 0, 0.4))',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Text with gradient animation */}
+            <div className="space-y-3">
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-primary-600 via-purple-600 to-primary-600 bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
+                Analyse en cours
+              </h3>
+              <p className="text-gray-600 max-w-md mx-auto animate-pulse">
+                Notre IA analyse votre projet et recherche les meilleurs professionnels...
+              </p>
+
+              {/* Progress dots */}
+              <div className="flex items-center justify-center gap-2 pt-4">
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="h-[calc(100vh-8rem)] flex flex-col">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
