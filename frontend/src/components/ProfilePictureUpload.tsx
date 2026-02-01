@@ -35,10 +35,28 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
     setSelectedFile(file);
     const reader = new FileReader();
     reader.onload = (e) => {
-      setPreviewUrl(e.target?.result as string);
-      setShowEditor(true);
-      setZoom(1);
-      setPosition({ x: 0, y: 0 });
+      const img = new Image();
+      img.onload = () => {
+        // Calculate optimal initial zoom to fill the circle
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        let optimalZoom = 1;
+
+        if (aspectRatio > 1) {
+          // Landscape: zoom to fill height
+          optimalZoom = 1 / aspectRatio;
+          if (optimalZoom < 1) optimalZoom = 1;
+        } else if (aspectRatio < 1) {
+          // Portrait: zoom to fill width
+          optimalZoom = aspectRatio;
+          if (optimalZoom < 1) optimalZoom = 1;
+        }
+
+        setZoom(Math.max(1, optimalZoom));
+        setPosition({ x: 0, y: 0 });
+        setPreviewUrl(e.target?.result as string);
+        setShowEditor(true);
+      };
+      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
@@ -214,8 +232,8 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
 
       {/* Editor Modal */}
       {showEditor && previewUrl && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 animate-slide-up">
             <h3 className="text-xl font-semibold mb-2">Ajuster votre photo</h3>
             <p className="text-sm text-gray-500 mb-4">Glissez pour repositionner, utilisez le zoom pour ajuster</p>
 
@@ -226,7 +244,9 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
               style={{ height: '400px' }}
             >
               <div
-                className="absolute inset-0 flex items-center justify-center cursor-move touch-none"
+                className={`absolute inset-0 flex items-center justify-center touch-none ${
+                  isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                }`}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -242,7 +262,7 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
                   className="max-w-none select-none"
                   style={{
                     transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-                    transition: isDragging ? 'none' : 'transform 0.1s',
+                    transition: isDragging ? 'none' : 'transform 0.2s ease-out',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                   }}
@@ -260,24 +280,24 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
                         <circle cx="180" cy="180" r="180" fill="black" />
                       </mask>
                     </defs>
-                    <rect width="360" height="360" fill="black" opacity="0.6" mask="url(#circleMask)" />
-                    <circle cx="180" cy="180" r="179" fill="none" stroke="white" strokeWidth="3" strokeDasharray="8 4" />
+                    <rect width="360" height="360" fill="black" opacity="0.65" mask="url(#circleMask)" />
+                    <circle cx="180" cy="180" r="179" fill="none" stroke="white" strokeWidth="2" strokeDasharray="6 3" opacity="0.9" />
                   </svg>
                 </div>
               </div>
 
               {/* Instructions */}
-              {!isDragging && (
-                <div className="absolute top-4 left-0 right-0 text-center pointer-events-none">
-                  <div className="inline-block bg-black/50 text-white text-sm px-4 py-2 rounded-full">
-                    Glissez pour repositionner
-                  </div>
+              <div className="absolute top-4 left-0 right-0 text-center pointer-events-none">
+                <div className={`inline-block text-white text-sm px-4 py-2 rounded-full transition-all ${
+                  isDragging ? 'bg-primary-500/90' : 'bg-black/50'
+                }`}>
+                  {isDragging ? 'Déplacement en cours...' : 'Glissez pour repositionner'}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Zoom Control */}
-            <div className="mb-6">
+            <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-gray-700">Zoom</label>
                 <span className="text-sm text-gray-500">{zoom.toFixed(1)}x</span>
@@ -286,7 +306,8 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
                 <button
                   type="button"
                   onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  disabled={zoom <= 0.5}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -304,13 +325,31 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
                 <button
                   type="button"
                   onClick={() => setZoom(Math.min(3, zoom + 0.1))}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  disabled={zoom >= 3}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </button>
               </div>
+            </div>
+
+            {/* Reset Button */}
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setZoom(1);
+                  setPosition({ x: 0, y: 0 });
+                }}
+                className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Réinitialiser
+              </button>
             </div>
 
             {/* Upload Progress */}
@@ -338,14 +377,14 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
                   setPreviewUrl(null);
                 }}
                 disabled={isUploading}
-                className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50 font-medium"
+                className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all disabled:opacity-50 font-medium hover:scale-[1.02] active:scale-[0.98]"
               >
                 Annuler
               </button>
               <button
                 onClick={handleUpload}
                 disabled={isUploading}
-                className="flex-1 px-6 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 font-medium"
+                className="flex-1 px-6 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-all disabled:opacity-50 font-medium shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 {isUploading ? 'Upload...' : 'Enregistrer'}
               </button>
