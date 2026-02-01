@@ -172,7 +172,7 @@ export class AiController {
   async addMessage(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { message, role } = req.body; // role: 'user' or 'assistant'
+      const { message, role, attachments } = req.body; // role: 'user' or 'assistant', attachments: optional uploaded files
       const userId = req.userId as string;
 
       // Fetch creator with all profile info for personalization
@@ -255,13 +255,53 @@ export class AiController {
         }
       }
 
-      // Add user message
+      // TODO: Analyze images with Gemini Vision API (when available)
+      // Extract visual insights: style, colors, mood, references, etc.
+      let visualInsights: any = null;
+      if (attachments && attachments.length > 0) {
+        // Placeholder for future Vision API integration
+        // visualInsights = await analyzeImagesWithVision(attachments);
+
+        // For now, extract basic info from attachments
+        const images = attachments.filter((a: any) => a.resourceType === 'image');
+        const pdfs = attachments.filter((a: any) => a.resourceType === 'raw');
+
+        visualInsights = {
+          hasVisuals: true,
+          imageCount: images.length,
+          pdfCount: pdfs.length,
+          // These fields will be populated by Vision API later:
+          dominantColors: [],
+          detectedStyles: [],
+          mood: null,
+          complexity: null,
+        };
+
+        // Update insights with visual information
+        if (images.length > 0 && role === 'user') {
+          updatedInsights = {
+            ...updatedInsights,
+            visualReferences: {
+              provided: true,
+              count: images.length,
+              // Will be enriched by Vision API:
+              analyzedStyles: [],
+              colorPalette: [],
+              visualMood: null,
+            },
+          };
+        }
+      }
+
+      // Add user message with attachments
       const newMessages = [
         ...currentMessages,
         {
           role: 'user',
           content: message,
           timestamp: new Date().toISOString(),
+          ...(attachments && attachments.length > 0 && { attachments }),
+          ...(visualInsights && { visualInsights }),
         },
       ];
 

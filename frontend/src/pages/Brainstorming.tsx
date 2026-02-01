@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { aiApi, matchingApi, ratingApi, subscriptionApi } from '../services/api';
+import { aiApi, matchingApi, ratingApi, subscriptionApi, uploadApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
 import FavoriteButton from '../components/FavoriteButton';
 import TypingText, { highlightText } from '../components/TypingText';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import FileUpload from '../components/FileUpload';
+import ImageLightbox from '../components/ImageLightbox';
+import MessageAttachments from '../components/MessageAttachments';
 
 export default function Brainstorming() {
   useDocumentTitle('Brainstorming IA | JUNY');
@@ -61,6 +64,12 @@ export default function Brainstorming() {
   // Edit message state
   const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
   const [editMessageContent, setEditMessageContent] = useState('');
+
+  // File upload states
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Check if user has paid subscription (Starter or higher)
   const hasPaidSubscription = subscription?.plan?.name === 'Starter' || subscription?.plan?.name === 'Premium';
@@ -197,16 +206,40 @@ export default function Brainstorming() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || !currentConversation || loading) return;
+    if ((!inputMessage.trim() && selectedFiles.length === 0) || !currentConversation || loading) return;
 
     setLoading(true);
     const userMessage = inputMessage;
     setInputMessage('');
 
     try {
+      let attachments: any[] = [];
+
+      // Upload files if any
+      if (selectedFiles.length > 0) {
+        setIsUploading(true);
+        try {
+          const uploadResponse = await uploadApi.uploadBrainstormingFiles(
+            selectedFiles,
+            (progress) => setUploadProgress(progress)
+          );
+
+          if (uploadResponse.success) {
+            attachments = uploadResponse.data;
+          }
+        } catch (uploadError) {
+          console.error('Error uploading files:', uploadError);
+        } finally {
+          setIsUploading(false);
+          setUploadProgress(0);
+          setSelectedFiles([]);
+        }
+      }
+
       const response = await aiApi.addMessage(currentConversation.id, {
         message: userMessage,
         role: 'user',
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
 
       if (response.success) {
@@ -709,6 +742,12 @@ export default function Brainstorming() {
                                       {msg.edited && (
                                         <span className="text-xs text-gray-400 mt-1 block">(modifié)</span>
                                       )}
+                                      {msg.attachments && msg.attachments.length > 0 && (
+                                        <MessageAttachments
+                                          attachments={msg.attachments}
+                                          onImageClick={(url) => setLightboxImage(url)}
+                                        />
+                                      )}
                                     </div>
                                     {/* Edit button - only for last user message */}
                                     {index === getLastUserMessageIndex() && !loading && typingMessageIndex === null && (
@@ -741,16 +780,24 @@ export default function Brainstorming() {
                                 )}
                               </div>
                             ) : (
-                              <div className="text-gray-700 text-base sm:text-lg leading-relaxed">
-                                {index === typingMessageIndex ? (
-                                  <TypingText
-                                    text={msg.content}
-                                    speed={12}
-                                    onComplete={() => setTypingMessageIndex(null)}
-                                    highlightKeywords={true}
+                              <div>
+                                <div className="text-gray-700 text-base sm:text-lg leading-relaxed">
+                                  {index === typingMessageIndex ? (
+                                    <TypingText
+                                      text={msg.content}
+                                      speed={12}
+                                      onComplete={() => setTypingMessageIndex(null)}
+                                      highlightKeywords={true}
+                                    />
+                                  ) : (
+                                    <span className="whitespace-pre-wrap">{highlightText(msg.content)}</span>
+                                  )}
+                                </div>
+                                {msg.attachments && msg.attachments.length > 0 && (
+                                  <MessageAttachments
+                                    attachments={msg.attachments}
+                                    onImageClick={(url) => setLightboxImage(url)}
                                   />
-                                ) : (
-                                  <span className="whitespace-pre-wrap">{highlightText(msg.content)}</span>
                                 )}
                               </div>
                             )}
@@ -778,18 +825,45 @@ export default function Brainstorming() {
 
                 {/* Input Area - Full width design */}
                 <div className="px-4 sm:px-6 lg:px-8 py-4 border-t border-gray-100 bg-white">
+                  {/* File Upload Component */}
+                  {!loading && (
+                    <div className="mb-3">
+                      <FileUpload
+                        onFilesSelected={setSelectedFiles}
+                        maxFiles={5}
+                        maxSize={15}
+                      />
+                    </div>
+                  )}
+
+                  {/* Upload Progress */}
+                  {isUploading && (
+                    <div className="mb-3 p-3 bg-orange-50 rounded-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-orange-700 font-medium">Upload en cours...</span>
+                        <span className="text-sm text-orange-600">{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-orange-200 rounded-full h-2">
+                        <div
+                          className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <form onSubmit={sendMessage} className="relative">
                     <input
                       type="text"
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="Décris ton projet..."
+                      placeholder={selectedFiles.length > 0 ? `${selectedFiles.length} fichier(s) sélectionné(s)...` : "Décris ton projet..."}
                       className="w-full px-5 py-4 pr-14 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:border-orange-300 focus:ring-2 focus:ring-orange-100 transition-all text-base sm:text-lg"
-                      disabled={loading}
+                      disabled={loading || isUploading}
                     />
                     <button
                       type="submit"
-                      disabled={loading || !inputMessage.trim()}
+                      disabled={loading || isUploading || (!inputMessage.trim() && selectedFiles.length === 0)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 text-gray-400 hover:text-orange-500 disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"
                     >
                       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1291,6 +1365,14 @@ export default function Brainstorming() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <ImageLightbox
+          imageUrl={lightboxImage}
+          onClose={() => setLightboxImage(null)}
+        />
       )}
     </CreatorLayout>
   );

@@ -256,7 +256,7 @@ export const aiApi = {
     return response.data;
   },
 
-  addMessage: async (conversationId: string, data: { message: string; role: string }) => {
+  addMessage: async (conversationId: string, data: { message: string; role: string; attachments?: any[] }) => {
     const response = await api.post(`/api/ai/conversations/${conversationId}/messages`, data);
     return response.data;
   },
@@ -428,6 +428,26 @@ export const uploadApi = {
 
   deletePortfolioImage: async (filename: string) => {
     const response = await api.delete(`/api/upload/portfolio/${filename}`);
+    return response.data;
+  },
+
+  uploadBrainstormingFiles: async (files: File[], onProgress?: (progress: number) => void) => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('images', file);
+    });
+
+    const response = await api.post('/api/upload/brainstorming/multiple', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percentCompleted);
+        }
+      },
+    });
     return response.data;
   },
 };

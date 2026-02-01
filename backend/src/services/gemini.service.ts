@@ -438,3 +438,133 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
     return { text: '', error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
+
+/**
+ * Analyze images with Gemini Vision API
+ * TODO: Implement when Gemini Vision integration is ready
+ *
+ * This function will:
+ * - Analyze visual style (modern, vintage, minimal, maximal, etc.)
+ * - Extract color palette and dominant colors
+ * - Detect mood and atmosphere
+ * - Identify visual references and inspirations
+ * - Assess complexity and detail level
+ * - Provide creative direction insights
+ *
+ * @param attachments - Array of uploaded image attachments from Cloudinary
+ * @returns Visual analysis results for matching
+ */
+export async function analyzeImagesWithVision(
+  attachments: Array<{
+    url: string;
+    publicId: string;
+    format: string;
+    resourceType: 'image' | 'raw';
+    width?: number;
+    height?: number;
+  }>
+): Promise<{
+  dominantColors: string[];
+  detectedStyles: string[];
+  mood: string | null;
+  complexity: 'simple' | 'moderate' | 'complex' | null;
+  visualReferences: string[];
+  creativeDirection: string;
+}> {
+  // TODO: Implement Gemini Vision API call
+  // For now, return placeholder data
+  console.log('⚠️ Vision analysis not yet implemented. Using placeholder data.');
+  console.log(`📸 Would analyze ${attachments.length} image(s)`);
+
+  return {
+    dominantColors: [],
+    detectedStyles: [],
+    mood: null,
+    complexity: null,
+    visualReferences: [],
+    creativeDirection: 'Visual analysis will be available when Gemini Vision is integrated',
+  };
+
+  /* FUTURE IMPLEMENTATION:
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  // Filter only images
+  const images = attachments.filter(a => a.resourceType === 'image');
+  if (images.length === 0) {
+    return { dominantColors: [], detectedStyles: [], mood: null, complexity: null, visualReferences: [], creativeDirection: '' };
+  }
+
+  // Prepare images for Vision API
+  const imageParts = await Promise.all(
+    images.map(async (img) => {
+      // Fetch image from Cloudinary
+      const response = await fetch(img.url);
+      const buffer = await response.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+
+      return {
+        inlineData: {
+          mimeType: `image/${img.format}`,
+          data: base64
+        }
+      };
+    })
+  );
+
+  const prompt = `Analyse ces images de référence pour un projet créatif. Fournis une analyse détaillée en JSON avec:
+
+  {
+    "dominantColors": ["couleur1", "couleur2", ...],
+    "detectedStyles": ["style1", "style2", ...],
+    "mood": "description de l'ambiance",
+    "complexity": "simple" | "moderate" | "complex",
+    "visualReferences": ["référence1", "référence2", ...],
+    "creativeDirection": "description de la direction artistique suggérée"
+  }
+
+  Sois précis et professionnel. Focus sur des insights actionnables pour le matching avec des créatifs.`;
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          { text: prompt },
+          ...imageParts
+        ]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: 1024,
+    }
+  };
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Vision API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  // Parse JSON response
+  const analysisMatch = text.match(/\{[\s\S]*\}/);
+  if (analysisMatch) {
+    return JSON.parse(analysisMatch[0]);
+  }
+
+  throw new Error('Failed to parse Vision API response');
+  */
+}

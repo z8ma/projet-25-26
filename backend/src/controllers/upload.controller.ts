@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { uploadImage } from '../services/upload.service.js';
+import { uploadFile } from '../services/upload.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +43,24 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
   }
 };
 
+// File filter for brainstorming - images and PDFs
+const brainstormingFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Type de fichier non autorisé. Utilisez JPG, PNG, GIF, WebP ou PDF.'));
+  }
+};
+
 // Configure multer
 export const upload = multer({
   storage,
@@ -52,17 +70,17 @@ export const upload = multer({
   },
 });
 
-// Configure multer for Cloudinary uploads (memory storage)
+// Configure multer for Cloudinary uploads (memory storage) - for brainstorming
 export const uploadMemory = multer({
   storage: multer.memoryStorage(),
-  fileFilter,
+  fileFilter: brainstormingFileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max for Cloudinary
+    fileSize: 15 * 1024 * 1024, // 15MB max (images ~10MB, PDFs ~15MB)
   },
 });
 
 export class UploadController {
-  // POST /api/upload/brainstorming - Upload brainstorming image to Cloudinary
+  // POST /api/upload/brainstorming - Upload brainstorming file (image or PDF) to Cloudinary
   async uploadBrainstormingImage(req: Request, res: Response) {
     try {
       if (!req.file) {
@@ -73,17 +91,20 @@ export class UploadController {
       }
 
       // Upload to Cloudinary
-      const result = await uploadImage(req.file.buffer, 'juny/brainstorming');
+      const result = await uploadFile(req.file.buffer, req.file.mimetype, 'juny/brainstorming');
 
       res.json({
         success: true,
-        message: 'Image uploadée avec succès',
+        message: 'Fichier uploadé avec succès',
         data: {
           url: result.url,
           publicId: result.publicId,
           width: result.width,
           height: result.height,
           format: result.format,
+          resourceType: result.resourceType,
+          fileSize: result.fileSize,
+          pages: result.pages,
         },
       });
     } catch (error: any) {
@@ -95,7 +116,7 @@ export class UploadController {
     }
   }
 
-  // POST /api/upload/brainstorming/multiple - Upload multiple brainstorming images
+  // POST /api/upload/brainstorming/multiple - Upload multiple brainstorming files (images/PDFs)
   async uploadBrainstormingImages(req: Request, res: Response) {
     try {
       const files = req.files as Express.Multer.File[];
@@ -107,22 +128,25 @@ export class UploadController {
         });
       }
 
-      // Upload all images in parallel to Cloudinary
+      // Upload all files in parallel to Cloudinary
       const uploadPromises = files.map((file) =>
-        uploadImage(file.buffer, 'juny/brainstorming')
+        uploadFile(file.buffer, file.mimetype, 'juny/brainstorming')
       );
 
       const results = await Promise.all(uploadPromises);
 
       res.json({
         success: true,
-        message: `${results.length} image(s) uploadée(s) avec succès`,
+        message: `${results.length} fichier(s) uploadé(s) avec succès`,
         data: results.map((result) => ({
           url: result.url,
           publicId: result.publicId,
           width: result.width,
           height: result.height,
           format: result.format,
+          resourceType: result.resourceType,
+          fileSize: result.fileSize,
+          pages: result.pages,
         })),
       });
     } catch (error: any) {
