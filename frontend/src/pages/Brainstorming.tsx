@@ -677,7 +677,9 @@ export default function Brainstorming() {
                   {messages.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center">
-                        <img src="/logo.png" alt="JUNY" className="w-16 h-16 mx-auto mb-6 object-contain" />
+                        <div className="w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                          <img src="/logo.png" alt="JUNY" className="w-full h-full object-contain" />
+                        </div>
                         <h3 className="text-2xl font-semibold text-gray-900 mb-2">Salut! Je suis JUNY</h3>
                         <p className="text-gray-500 text-lg">
                           Parle-moi de ton projet et je t'aiderai à le concrétiser.
@@ -690,7 +692,9 @@ export default function Brainstorming() {
                         <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                           {/* Avatar */}
                           {msg.role === 'assistant' ? (
-                            <img src="/logo.png" alt="JUNY" className="flex-shrink-0 w-10 h-10 object-contain" />
+                            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+                              <img src="/logo.png" alt="JUNY" className="w-full h-full object-contain" />
+                            </div>
                           ) : (
                             <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
                               <span className="text-base font-medium text-gray-600">
@@ -805,7 +809,9 @@ export default function Brainstorming() {
                   {loading && (
                     <div className="mt-8">
                       <div className="flex gap-4">
-                        <img src="/logo.png" alt="JUNY" className="flex-shrink-0 w-10 h-10 object-contain" />
+                        <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+                          <img src="/logo.png" alt="JUNY" className="w-full h-full object-contain" />
+                        </div>
                         <div className="flex items-center gap-1.5 pt-3">
                           <span className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                           <span className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
