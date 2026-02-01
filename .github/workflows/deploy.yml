@@ -35,8 +35,9 @@ jobs:
             echo "🔨 Building backend..."
             cd backend
             npm install --production=false
+            npx prisma generate
+            npx prisma db push --accept-data-loss
             npm run build
-            npm run prisma:generate
             cd ..
 
             # Frontend deployment
