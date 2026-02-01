@@ -91,8 +91,8 @@ export class WebhookController {
         stripeSubscriptionId,
         resetDate,
         startedAt: new Date(),
-        expiresAt: stripeSubscription.current_period_end
-          ? new Date(stripeSubscription.current_period_end * 1000)
+        expiresAt: (stripeSubscription as any).current_period_end
+          ? new Date((stripeSubscription as any).current_period_end * 1000)
           : null,
       },
     });
@@ -123,8 +123,8 @@ export class WebhookController {
       data: {
         status,
         cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        expiresAt: stripeSubscription.current_period_end
-          ? new Date(stripeSubscription.current_period_end * 1000)
+        expiresAt: (stripeSubscription as any).current_period_end
+          ? new Date((stripeSubscription as any).current_period_end * 1000)
           : null,
       },
     });
@@ -147,7 +147,7 @@ export class WebhookController {
   }
 
   private async handlePaymentSucceeded(invoice: Stripe.Invoice) {
-    const stripeSubscriptionId = invoice.subscription as string;
+    const stripeSubscriptionId = (invoice as any).subscription as string;
 
     if (!stripeSubscriptionId) return;
 
@@ -174,7 +174,7 @@ export class WebhookController {
   }
 
   private async handlePaymentFailed(invoice: Stripe.Invoice) {
-    const stripeSubscriptionId = invoice.subscription as string;
+    const stripeSubscriptionId = (invoice as any).subscription as string;
 
     if (!stripeSubscriptionId) return;
 

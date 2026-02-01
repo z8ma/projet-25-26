@@ -237,7 +237,7 @@ export class AiController {
             companyName: creator.companyName,
             industry: creator.industry,
             typicalBudget: creator.typicalBudget,
-            preferredCreatives: creator.preferredCreatives,
+            preferredCreatives: creator.preferredCreatives as string[] | undefined,
           }
         );
 
@@ -250,7 +250,7 @@ export class AiController {
             companyName: creator.companyName,
             industry: creator.industry,
             typicalBudget: creator.typicalBudget,
-            preferredCreatives: creator.preferredCreatives,
+            preferredCreatives: creator.preferredCreatives as string[] | undefined,
           });
         }
       }
