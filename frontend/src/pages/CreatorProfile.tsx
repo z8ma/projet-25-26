@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { creatorApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
+import ProfilePictureUpload from '../components/ProfilePictureUpload';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 type TabType = 'profile' | 'company' | 'preferences';
@@ -321,25 +322,11 @@ export default function CreatorProfile() {
                 </div>
 
                 <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Votre photo de profil</label>
-                  <input
-                    type="url"
-                    value={profile.profilePictureUrl}
-                    onChange={(e) => setProfile({ ...profile, profilePictureUrl: e.target.value })}
-                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                    placeholder="https://..."
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Votre photo de profil</label>
+                  <ProfilePictureUpload
+                    currentImageUrl={profile.profilePictureUrl}
+                    onUploadSuccess={(url) => setProfile({ ...profile, profilePictureUrl: url })}
                   />
-                  {profile.profilePictureUrl && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-                      <p className="text-xs text-gray-500 mb-2">Aperçu de votre photo :</p>
-                      <img
-                        src={profile.profilePictureUrl}
-                        alt="Profile preview"
-                        className="h-20 w-20 rounded-full object-cover"
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                      />
-                    </div>
-                  )}
                 </div>
 
                 <div>
