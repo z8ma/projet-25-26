@@ -86,39 +86,46 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d')!;
       const img = imageRef.current!;
-      const container = containerRef.current!;
 
       const size = 400;
       canvas.width = size;
       canvas.height = size;
 
+      // Create circular clipping path
       ctx.beginPath();
       ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
 
-      const containerRect = container.getBoundingClientRect();
-      const imgRect = img.getBoundingClientRect();
+      // Calculate the size of the original image when displayed
+      const naturalWidth = img.naturalWidth;
+      const naturalHeight = img.naturalHeight;
 
-      const scaleX = img.naturalWidth / imgRect.width;
-      const scaleY = img.naturalHeight / imgRect.height;
+      // Calculate aspect ratio
+      const aspectRatio = naturalWidth / naturalHeight;
 
-      const centerX = containerRect.left + containerRect.width / 2;
-      const centerY = containerRect.top + containerRect.height / 2;
+      // Calculate the displayed size (before zoom and position)
+      let displayWidth, displayHeight;
+      if (aspectRatio > 1) {
+        // Landscape
+        displayWidth = 400;
+        displayHeight = 400 / aspectRatio;
+      } else {
+        // Portrait or square
+        displayHeight = 400;
+        displayWidth = 400 * aspectRatio;
+      }
 
-      const imgCenterX = imgRect.left + imgRect.width / 2;
-      const imgCenterY = imgRect.top + imgRect.height / 2;
+      // Apply zoom
+      displayWidth *= zoom;
+      displayHeight *= zoom;
 
-      const offsetX = (centerX - imgCenterX) * scaleX;
-      const offsetY = (centerY - imgCenterY) * scaleY;
+      // Calculate the position on canvas (center + offset)
+      const canvasX = size / 2 - displayWidth / 2 + position.x;
+      const canvasY = size / 2 - displayHeight / 2 + position.y;
 
-      const drawWidth = img.naturalWidth;
-      const drawHeight = img.naturalHeight;
-
-      const finalX = size / 2 - drawWidth / 2 + offsetX;
-      const finalY = size / 2 - drawHeight / 2 + offsetY;
-
-      ctx.drawImage(img, finalX, finalY, drawWidth, drawHeight);
+      // Draw the image
+      ctx.drawImage(img, canvasX, canvasY, displayWidth, displayHeight);
 
       canvas.toBlob((blob) => {
         resolve(blob!);
