@@ -338,14 +338,35 @@ export default function Brainstorming() {
 
     setConfirmMatchingModalOpen(false);
     setMatchingLoading(true);
+
+    // Start timer for minimum 2 seconds animation
+    const startTime = Date.now();
+
     try {
       const response = await matchingApi.generateMatches(currentConversation.id);
+
+      // Calculate remaining time to reach 2 seconds
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 2000 - elapsedTime);
+
+      // Wait for remaining time if needed
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+
       if (response.success) {
         setMatches(response.data);
         setShowMatches(true);
       }
     } catch (err: any) {
       console.error('Error generating matches:', err);
+
+      // Still wait minimum time even on error
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 2000 - elapsedTime);
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
     } finally {
       setMatchingLoading(false);
     }
