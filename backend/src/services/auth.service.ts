@@ -47,6 +47,20 @@ export class AuthService {
         role: true,
         createdAt: true,
         updatedAt: true,
+        creator: {
+          select: {
+            id: true,
+            companyName: true,
+            profilePictureUrl: true,
+          },
+        },
+        professional: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     });
 
@@ -68,6 +82,20 @@ export class AuthService {
         role: true,
         createdAt: true,
         updatedAt: true,
+        creator: {
+          select: {
+            id: true,
+            companyName: true,
+            profilePictureUrl: true,
+          },
+        },
+        professional: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     });
 
@@ -105,6 +133,7 @@ export class AuthService {
           select: {
             id: true,
             companyName: true,
+            profilePictureUrl: true,
           },
         },
         professional: {
