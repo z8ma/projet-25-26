@@ -14,11 +14,11 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
 
     try {
       await login(email, password);
-      // Redirect to dashboard on success
+      // Clear any previous errors and redirect to dashboard on success
+      clearError();
       navigate('/dashboard');
     } catch (err) {
       // Error is handled by the store
