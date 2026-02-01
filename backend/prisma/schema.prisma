@@ -104,7 +104,7 @@ model Creator {
   companySize     String?   @map("company_size") // Taille entreprise (1-10, 11-50, 51-200, 200+)
   website         String?   // Site web
   description     String?   // Description de l'entreprise
-  logoUrl         String?   @map("logo_url") // URL du logo
+  profilePictureUrl String? @map("profile_picture_url") // URL de la photo de profil
 
   // Contact information
   phone           String?   // Téléphone

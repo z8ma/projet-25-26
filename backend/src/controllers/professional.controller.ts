@@ -993,7 +993,7 @@ export class ProfessionalController {
                   id: true,
                   companyName: true,
                   industry: true,
-                  logoUrl: true,
+                  profilePictureUrl: true,
                 },
               },
             },
@@ -1015,7 +1015,7 @@ export class ProfessionalController {
           id: match.conversation?.creator?.id,
           companyName: match.conversation?.creator?.companyName,
           industry: match.conversation?.creator?.industry,
-          logoUrl: match.conversation?.creator?.logoUrl,
+          profilePictureUrl: match.conversation?.creator?.profilePictureUrl,
           lastProject: match.conversation?.projectTitle,
         }));
 

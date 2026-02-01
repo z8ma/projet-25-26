@@ -13,7 +13,7 @@ interface CreatorProfile {
   companySize: string;
   website: string;
   description: string;
-  logoUrl: string;
+  profilePictureUrl: string;
   phone: string;
   city: string;
   country: string;
@@ -86,7 +86,7 @@ export default function CreatorProfile() {
     companySize: '',
     website: '',
     description: '',
-    logoUrl: '',
+    profilePictureUrl: '',
     phone: '',
     city: '',
     country: 'France',
@@ -121,7 +121,7 @@ export default function CreatorProfile() {
           companySize: response.data.companySize || '',
           website: response.data.website || '',
           description: response.data.description || '',
-          logoUrl: response.data.logoUrl || '',
+          profilePictureUrl: response.data.profilePictureUrl || '',
           phone: response.data.phone || '',
           city: response.data.city || '',
           country: response.data.country || 'France',
@@ -320,6 +320,28 @@ export default function CreatorProfile() {
                   />
                 </div>
 
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Votre photo de profil</label>
+                  <input
+                    type="url"
+                    value={profile.profilePictureUrl}
+                    onChange={(e) => setProfile({ ...profile, profilePictureUrl: e.target.value })}
+                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="https://..."
+                  />
+                  {profile.profilePictureUrl && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+                      <p className="text-xs text-gray-500 mb-2">Aperçu de votre photo :</p>
+                      <img
+                        src={profile.profilePictureUrl}
+                        alt="Profile preview"
+                        className="h-20 w-20 rounded-full object-cover"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Nom de l'entreprise <span className="text-red-500">*</span>
@@ -481,28 +503,6 @@ export default function CreatorProfile() {
                   <p className="text-xs text-gray-500 mt-2">
                     Cette description aide l'IA à trouver les meilleurs créatifs pour vos projets
                   </p>
-                </div>
-
-                <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">URL du logo</label>
-                  <input
-                    type="url"
-                    value={profile.logoUrl}
-                    onChange={(e) => setProfile({ ...profile, logoUrl: e.target.value })}
-                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                    placeholder="https://..."
-                  />
-                  {profile.logoUrl && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-                      <p className="text-xs text-gray-500 mb-2">Aperçu du logo :</p>
-                      <img
-                        src={profile.logoUrl}
-                        alt="Logo preview"
-                        className="h-16 object-contain"
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
 

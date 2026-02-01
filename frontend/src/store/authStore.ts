@@ -9,6 +9,7 @@ interface User {
   creator?: {
     id: string;
     companyName?: string;
+    profilePictureUrl?: string;
   };
   professional?: {
     id: string;

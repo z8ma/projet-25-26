@@ -696,11 +696,25 @@ export default function Brainstorming() {
                               <img src="/logo.png" alt="JUNY" className="w-full h-full object-contain" />
                             </div>
                           ) : (
-                            <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
-                              <span className="text-base font-medium text-gray-600">
-                                {user?.creator?.companyName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
-                              </span>
-                            </div>
+                            user?.creator?.profilePictureUrl ? (
+                              <div className="flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden">
+                                <img
+                                  src={user.creator.profilePictureUrl}
+                                  alt="Profile"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.parentElement!.innerHTML = `<div class="w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center"><span class="text-base font-medium text-gray-600">${user?.creator?.companyName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}</span></div>`;
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
+                                <span className="text-base font-medium text-gray-600">
+                                  {user?.creator?.companyName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                                </span>
+                              </div>
+                            )
                           )}
 
                           {/* Message content */}
