@@ -18,6 +18,8 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 90s
+          command_timeout: 15m
           script: |
             set -e
             echo "🚀 Starting deployment..."
