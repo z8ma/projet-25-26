@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import PublicNavbar from '../components/PublicNavbar';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const creativeProfessional = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&h=600&fit=crop';
 
 export default function ProfessionalLanding() {
+  useDocumentTitle('JUNY Professionnels');
+
   // Intersection Observer pour les animations au scroll
   useEffect(() => {
     const observerOptions = {

@@ -2,6 +2,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { subscriptionApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface Plan {
   id: string;
@@ -14,6 +15,8 @@ interface Plan {
 }
 
 export default function Pricing() {
+  useDocumentTitle('Tarifs | JUNY');
+
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [solutionsOpen, setSolutionsOpen] = useState(false);
   const [ressourcesOpen, setRessourcesOpen] = useState(false);

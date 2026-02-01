@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { aiApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
 import ProjectExportModal from '../components/ProjectExportModal';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface Professional {
   id: string;
@@ -40,6 +41,8 @@ interface Conversation {
 type FilterType = 'all' | 'active' | 'completed' | 'pending';
 
 export default function CreatorProjects() {
+  useDocumentTitle('Mes Projets | JUNY');
+
   const { user, token } = useAuthStore();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);

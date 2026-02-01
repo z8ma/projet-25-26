@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 export default function Register() {
+  useDocumentTitle('Inscription | JUNY');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'CREATOR' | 'PROFESSIONAL'>('CREATOR');

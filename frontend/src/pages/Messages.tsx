@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { matchingApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface Professional {
   id: string;
@@ -46,6 +47,8 @@ interface MatchWithMessages {
 }
 
 export default function Messages() {
+  useDocumentTitle('Messages | JUNY');
+
   const { user, token } = useAuthStore();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<MatchWithMessages[]>([]);

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { creatorApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 type TabType = 'profile' | 'company' | 'preferences';
 
@@ -70,6 +71,8 @@ const CREATIVE_TYPES = [
 ];
 
 export default function CreatorProfile() {
+  useDocumentTitle('Mon Profil | JUNY');
+
   const { user } = useAuthStore();
   const navigate = useNavigate();
 

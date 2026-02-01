@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import CreatorLayout from '../components/CreatorLayout';
 import { api, subscriptionApi } from '../services/api';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface Subscription {
   id?: string;
@@ -25,6 +26,8 @@ interface Subscription {
 }
 
 export default function Settings() {
+  useDocumentTitle('Paramètres | JUNY');
+
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();

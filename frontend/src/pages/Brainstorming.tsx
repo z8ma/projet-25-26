@@ -5,8 +5,11 @@ import { aiApi, matchingApi, ratingApi, subscriptionApi } from '../services/api'
 import CreatorLayout from '../components/CreatorLayout';
 import FavoriteButton from '../components/FavoriteButton';
 import TypingText, { highlightText } from '../components/TypingText';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 export default function Brainstorming() {
+  useDocumentTitle('Brainstorming IA | JUNY');
+
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const { conversationId } = useParams();

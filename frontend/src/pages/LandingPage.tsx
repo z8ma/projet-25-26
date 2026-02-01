@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import PublicNavbar from '../components/PublicNavbar';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 // Placeholder images - replace with actual image paths when available
 const creativeWork = 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&h=600&fit=crop';
@@ -10,6 +11,8 @@ const overheadTeam = 'https://images.unsplash.com/photo-1543269865-cbf427effbad?
 const digitalAnimation = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&h=600&fit=crop';
 
 export default function LandingPage() {
+  useDocumentTitle('JUNY - Trouvez le créatif parfait');
+
   // Intersection Observer pour les animations au scroll
   useEffect(() => {
     const observerOptions = {

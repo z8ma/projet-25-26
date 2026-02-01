@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 export default function Login() {
+  useDocumentTitle('Connexion | JUNY');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
@@ -58,10 +61,7 @@ export default function Login() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (error) clearError();
-                }}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="modern-input"
                 placeholder="votre@email.com"
@@ -79,10 +79,7 @@ export default function Login() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (error) clearError();
-                }}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 className="modern-input"
                 placeholder="••••••••"

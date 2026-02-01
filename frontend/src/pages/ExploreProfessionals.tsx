@@ -5,6 +5,7 @@ import { professionalApi, subscriptionApi } from '../services/api';
 import FavoriteButton from '../components/FavoriteButton';
 import FilterDropdown from '../components/FilterDropdown';
 import ExternalLinkWarning from '../components/ExternalLinkWarning';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface Professional {
   id: string;
@@ -50,6 +51,8 @@ interface Profession {
 const FREE_PROFILE_LIMIT = 3;
 
 export default function ExploreProfessionals() {
+  useDocumentTitle('Explorer | JUNY');
+
   const navigate = useNavigate();
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [professions, setProfessions] = useState<Profession[]>([]);

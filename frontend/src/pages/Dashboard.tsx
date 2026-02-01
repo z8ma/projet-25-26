@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { aiApi, matchingApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
 import CreditHistoryModal from '../components/CreditHistoryModal';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface Match {
   id: string;
@@ -28,6 +29,8 @@ interface MessageConversation {
 }
 
 export default function Dashboard() {
+  useDocumentTitle('Dashboard | JUNY');
+
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);

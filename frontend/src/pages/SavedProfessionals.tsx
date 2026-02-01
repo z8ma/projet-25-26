@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import CreatorLayout from '../components/CreatorLayout';
 import { favoritesApi } from '../services/api';
 import FavoriteButton from '../components/FavoriteButton';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface SavedProfessional {
   id: string;
@@ -33,6 +34,8 @@ interface SavedProfessional {
 }
 
 export default function SavedProfessionals() {
+  useDocumentTitle('Favoris | JUNY');
+
   const [favorites, setFavorites] = useState<SavedProfessional[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingNote, setEditingNote] = useState<string | null>(null);

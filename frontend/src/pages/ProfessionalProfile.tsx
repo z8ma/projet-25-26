@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { professionalApi, uploadApi } from '../services/api';
 import ExternalLinkWarning from '../components/ExternalLinkWarning';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const MISSION_TYPES = [
   { id: 'branding', label: 'Branding' },
@@ -56,6 +57,8 @@ const MENU_ITEMS = [
 ];
 
 export default function ProfessionalProfile() {
+  useDocumentTitle('Mon Profil | JUNY');
+
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
