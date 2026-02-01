@@ -124,7 +124,7 @@ export default function ExploreProfessionals() {
     }
   };
 
-  const canViewProfile = (professionalId: string, index: number) => {
+  const canViewProfile = (professionalId: string, _index: number) => {
     if (isPro) return true;
     if (viewedProfiles.has(professionalId)) return true;
     if (viewedProfiles.size < FREE_PROFILE_LIMIT) return true;
@@ -344,7 +344,7 @@ export default function ExploreProfessionals() {
                   {/* Portfolio Preview */}
                   <div className={`h-40 bg-gray-100 grid grid-cols-2 gap-0.5 ${isBlurred ? 'blur-md' : ''}`}>
                     {professional.portfolios.length > 0 ? (
-                      professional.portfolios.slice(0, 4).map((portfolio, i) => (
+                      professional.portfolios.slice(0, 4).map((portfolio) => (
                         <div key={portfolio.id} className="bg-gray-200 overflow-hidden">
                           {portfolio.imageUrl ? (
                             <img

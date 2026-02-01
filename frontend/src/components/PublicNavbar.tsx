@@ -10,7 +10,8 @@ export default function PublicNavbar({ variant = 'primary' }: PublicNavbarProps)
   const [solutionsOpen, setSolutionsOpen] = useState(false);
   const [ressourcesOpen, setRessourcesOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isAuthenticated } = useAuthStore();
+  const { user } = useAuthStore();
+  const isAuthenticated = !!user;
   const location = useLocation();
 
   const isProfessionalPage = location.pathname === '/professionnels';
@@ -226,7 +227,7 @@ export default function PublicNavbar({ variant = 'primary' }: PublicNavbarProps)
                       className="hidden md:flex items-center gap-2"
                     >
                       <div className={`w-10 h-10 bg-gradient-to-br ${theme.button} rounded-full flex items-center justify-center text-white font-bold`}>
-                        {user?.creator?.companyName?.[0] || user?.professional?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                        {user?.creator?.companyName?.[0] || user?.professional?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
                       </div>
                     </Link>
                   </>

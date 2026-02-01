@@ -5,6 +5,7 @@ interface User {
   id: string;
   email: string;
   role: 'CREATOR' | 'PROFESSIONAL';
+  createdAt?: string;
   creator?: {
     id: string;
     companyName?: string;
