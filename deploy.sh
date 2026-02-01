@@ -13,6 +13,11 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# 0. Récupérer les derniers changements
+echo -e "${YELLOW}🔄 Récupération des derniers changements...${NC}"
+git pull
+echo -e "${GREEN}✅ Code mis à jour${NC}"
+
 # 1. Build Frontend
 echo -e "${YELLOW}📦 Build du Frontend...${NC}"
 cd frontend
