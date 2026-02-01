@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { uploadImage } from '../services/upload.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,7 +52,88 @@ export const upload = multer({
   },
 });
 
+// Configure multer for Cloudinary uploads (memory storage)
+export const uploadMemory = multer({
+  storage: multer.memoryStorage(),
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max for Cloudinary
+  },
+});
+
 export class UploadController {
+  // POST /api/upload/brainstorming - Upload brainstorming image to Cloudinary
+  async uploadBrainstormingImage(req: Request, res: Response) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'Aucun fichier fourni',
+        });
+      }
+
+      // Upload to Cloudinary
+      const result = await uploadImage(req.file.buffer, 'juny/brainstorming');
+
+      res.json({
+        success: true,
+        message: 'Image uploadée avec succès',
+        data: {
+          url: result.url,
+          publicId: result.publicId,
+          width: result.width,
+          height: result.height,
+          format: result.format,
+        },
+      });
+    } catch (error: any) {
+      console.error('Cloudinary upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de l\'upload',
+      });
+    }
+  }
+
+  // POST /api/upload/brainstorming/multiple - Upload multiple brainstorming images
+  async uploadBrainstormingImages(req: Request, res: Response) {
+    try {
+      const files = req.files as Express.Multer.File[];
+
+      if (!files || files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Aucun fichier fourni',
+        });
+      }
+
+      // Upload all images in parallel to Cloudinary
+      const uploadPromises = files.map((file) =>
+        uploadImage(file.buffer, 'juny/brainstorming')
+      );
+
+      const results = await Promise.all(uploadPromises);
+
+      res.json({
+        success: true,
+        message: `${results.length} image(s) uploadée(s) avec succès`,
+        data: results.map((result) => ({
+          url: result.url,
+          publicId: result.publicId,
+          width: result.width,
+          height: result.height,
+          format: result.format,
+        })),
+      });
+    } catch (error: any) {
+      console.error('Cloudinary upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de l\'upload',
+      });
+    }
+  }
+
   // POST /api/upload/portfolio - Upload portfolio image
   async uploadPortfolioImage(req: Request, res: Response) {
     try {

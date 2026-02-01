@@ -294,6 +294,77 @@ export async function generateGeminiResponse(
 }
 
 /**
+ * Generate a concise project title from user message (like ChatGPT/Claude)
+ */
+export async function generateProjectTitle(
+  userMessage: string
+): Promise<GeminiResponse> {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    return { text: '', error: 'API key not configured' };
+  }
+
+  const prompt = `Tu dois générer un titre court et descriptif pour un projet créatif basé sur ce message utilisateur:
+
+"${userMessage}"
+
+Règles:
+- Maximum 5-7 mots
+- Décris le type de projet et l'objectif principal
+- Sois concis et clair
+- Style professionnel mais accessible
+- Exemples de bons titres: "Logo pour startup tech", "Site web e-commerce mode", "Refonte identité visuelle café", "Application mobile fitness"
+
+Réponds UNIQUEMENT avec le titre, sans guillemets, sans point final, sans texte supplémentaire.`;
+
+  try {
+    const requestBody = {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 50,
+      },
+    };
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      return { text: '', error: `API error: ${response.status}` };
+    }
+
+    const data = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    // Clean up the title
+    if (text) {
+      text = text.trim().replace(/^["']|["']$/g, '').replace(/\.$/, '');
+    }
+
+    return { text: text || '' };
+  } catch (error) {
+    console.error('Gemini title generation error:', error);
+    return { text: '', error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
  * Generate a project summary using Gemini
  */
 export async function generateProjectSummary(
