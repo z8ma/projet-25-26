@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma.js';
 import { NotificationController } from './notification.controller.js';
+import { matchingService } from '../services/matching.service.js';
 
 export class MatchingController {
   // POST /api/matching/conversations/:conversationId/match - Generate matches for conversation
@@ -34,9 +35,6 @@ export class MatchingController {
         });
       }
 
-      // Convert creator budget to numeric range for comparison
-      const creatorBudgetMax = this.getBudgetMaxValue(creator.typicalBudget);
-
       // Get all available professionals
       const professionals = await prisma.professional.findMany({
         where: {
@@ -65,8 +63,8 @@ export class MatchingController {
         },
       });
 
-      // Smart matching algorithm using creator preferences
-      const matches = this.calculateMatches(conversation, professionals, creator, creatorBudgetMax);
+      // Smart matching algorithm using AI analysis
+      const matches = await this.calculateMatchesWithAI(conversation, professionals, creator);
 
       // Delete existing matches for this conversation
       await prisma.match.deleteMany({
@@ -594,173 +592,117 @@ export class MatchingController {
     }
   }
 
-  // Helper: Convert budget string to max numeric value
-  private getBudgetMaxValue(budget: string | null): number {
-    if (!budget) return Infinity;
-    const budgetMap: Record<string, number> = {
-      '<1k': 1000,
-      '1-5k': 5000,
-      '5-10k': 10000,
-      '10-25k': 25000,
-      '25-50k': 50000,
-      '50k+': 100000,
-    };
-    return budgetMap[budget] || Infinity;
-  }
 
-  // Helper: Map creative type ID to profession keywords
-  private getCreativeTypeKeywords(creativeType: string): string[] {
-    const typeMap: Record<string, string[]> = {
-      'graphiste': ['graphiste', 'graphic', 'designer'],
-      'ux-ui': ['ux', 'ui', 'interface', 'experience'],
-      'motion': ['motion', 'animation', 'animateur'],
-      'illustrateur': ['illustra', 'dessin'],
-      '3d': ['3d', 'three', 'modéli'],
-      'web': ['web', 'développeur', 'frontend'],
-      'branding': ['brand', 'identité', 'marque'],
-      'photo': ['photo', 'photograph'],
-      'video': ['vidéo', 'video', 'réalisateur'],
-      'social': ['social', 'community', 'média'],
-    };
-    return typeMap[creativeType] || [];
-  }
-
-  // Helper: Calculate match scores with creator preferences
-  private calculateMatches(
+  // Helper: Calculate match scores with AI analysis
+  private async calculateMatchesWithAI(
     conversation: any,
     professionals: any[],
-    creator: any,
-    creatorBudgetMax: number
-  ): Array<{ professionalId: string; score: number; reasoning: string }> {
+    creator: any
+  ): Promise<Array<{ professionalId: string; score: number; reasoning: string }>> {
     const matches: Array<{ professionalId: string; score: number; reasoning: string }> = [];
 
-    // Extract keywords from conversation messages
+    try {
+      // Step 1: Analyze conversation using AI
+      const messages = (conversation.messages as any[]) || [];
+      const analysis = await matchingService.analyzeConversationForMatching(
+        messages,
+        {
+          industry: creator.industry,
+          preferredCreatives: creator.preferredCreatives,
+          typicalBudget: creator.typicalBudget,
+        }
+      );
+
+      console.log('AI Matching Analysis:', JSON.stringify(analysis, null, 2));
+
+      // Step 2: Calculate match score for each professional
+      for (const professional of professionals) {
+        const { score, reasons } = matchingService.calculateEnhancedMatchScore(
+          professional,
+          analysis,
+          creator.typicalBudget,
+          {
+            industry: creator.industry,
+            preferredCreatives: creator.preferredCreatives,
+          }
+        );
+
+        // Only include professionals with score >= 60
+        if (score >= 60) {
+          matches.push({
+            professionalId: professional.id,
+            score,
+            reasoning: reasons.join(' • ') || 'Profil correspondant',
+          });
+        }
+      }
+
+      // Sort by score descending and take top 10
+      return matches.sort((a, b) => b.score - a.score).slice(0, 10);
+    } catch (error) {
+      console.error('Error in AI matching, falling back to basic matching:', error);
+
+      // Fallback to basic matching if AI fails
+      return this.calculateBasicMatches(conversation, professionals, creator);
+    }
+  }
+
+  // Helper: Basic fallback matching (without AI)
+  private calculateBasicMatches(
+    conversation: any,
+    professionals: any[],
+    creator: any
+  ): Array<{ professionalId: string; score: number; reasoning: string }> {
+    const matches: Array<{ professionalId: string; score: number; reasoning: string }> = [];
     const messages = (conversation.messages as any[]) || [];
     const conversationText = messages.map((m) => m.content).join(' ').toLowerCase();
 
-    // Get creator preferences
-    const preferredCreatives = creator.preferredCreatives || [];
-    const creatorIndustry = (creator.industry || '').toLowerCase();
-    const companyName = creator.companyName || '';
-
-    // Keywords for different professions
     const keywords = {
-      graphiste: ['logo', 'identité', 'graphisme', 'branding', 'charte', 'visuel'],
-      '3d': ['3d', 'modélisation', 'render', 'animation 3d', 'blender', 'maya'],
-      motion: ['motion', 'animation', 'vidéo', 'after effects', 'mouvement'],
-      web: ['site', 'web', 'landing', 'interface', 'ui', 'ux'],
-      illustration: ['illustration', 'dessin', 'artwork', 'personnage'],
+      graphiste: ['logo', 'identité', 'graphisme', 'branding'],
+      '3d': ['3d', 'modélisation', 'render'],
+      motion: ['motion', 'animation', 'vidéo'],
+      web: ['site', 'web', 'landing', 'interface'],
     };
 
     for (const professional of professionals) {
-      let score = 50; // Base score
+      let score = 50;
       const reasons: string[] = [];
 
-      // === BUDGET COMPATIBILITY CHECK ===
-      const profMinBudget = professional.minimumBudget ? Number(professional.minimumBudget) : 0;
-      if (profMinBudget > 0 && creatorBudgetMax < profMinBudget) {
-        // Skip professionals who require more budget than creator typically spends
-        continue;
-      }
-      if (profMinBudget > 0 && creatorBudgetMax >= profMinBudget) {
-        score += 10;
-        reasons.push('Budget compatible');
-      }
-
-      // === PREFERRED CREATIVE TYPES BONUS ===
-      if (preferredCreatives.length > 0) {
-        for (const pp of professional.professions) {
-          const professionName = pp.profession.name.toLowerCase();
-          for (const preferredType of preferredCreatives) {
-            const typeKeywords = this.getCreativeTypeKeywords(preferredType);
-            if (typeKeywords.some(kw => professionName.includes(kw))) {
-              score += 15;
-              reasons.push(`Type de créatif recherché par ${companyName || 'le client'}`);
-              break;
-            }
-          }
-        }
-      }
-
-      // === INDUSTRY MATCH (via portfolio client types) ===
-      if (creatorIndustry && professional.portfolios) {
-        const hasIndustryExperience = professional.portfolios.some((p: any) => {
-          const clientType = (p.clientType || '').toLowerCase();
-          return clientType.includes(creatorIndustry) || creatorIndustry.includes(clientType);
-        });
-        if (hasIndustryExperience) {
-          score += 10;
-          reasons.push(`Expérience dans le secteur ${creator.industry}`);
-        }
-      }
-
-      // Check profession match with conversation keywords
+      // Profession keyword match
       for (const pp of professional.professions) {
         const professionName = pp.profession.name.toLowerCase();
-
         for (const [key, keywordList] of Object.entries(keywords)) {
           if (professionName.includes(key)) {
-            const matchedKeywords = keywordList.filter((kw) =>
-              conversationText.includes(kw)
-            );
-
-            if (matchedKeywords.length > 0) {
-              score += matchedKeywords.length * 10;
-              reasons.push(`Métier "${pp.profession.name}" correspond aux besoins`);
-              break;
+            const matched = keywordList.filter((kw) => conversationText.includes(kw));
+            if (matched.length > 0) {
+              score += matched.length * 10;
+              reasons.push(`Métier correspondant`);
             }
           }
         }
-
-        if (pp.isPrimary) {
-          score += 5;
-        }
       }
 
-      // Availability bonus
+      // Availability
       if (professional.availability === 'Disponible') {
         score += 10;
-        reasons.push('Disponible immédiatement');
+        reasons.push('Disponible');
       }
 
-      // Experience bonus
-      if (professional.experienceYears) {
-        if (professional.experienceYears >= 5) {
-          score += 15;
-          reasons.push(`${professional.experienceYears} ans d'expérience`);
-        } else if (professional.experienceYears >= 2) {
-          score += 10;
-        }
+      // Experience
+      if (professional.experienceYears >= 3) {
+        score += 10;
+        reasons.push('Expérimenté');
       }
 
-      // Portfolio bonus
-      if (professional.portfolios && professional.portfolios.length > 0) {
-        score += Math.min(professional.portfolios.length * 2, 10);
-        reasons.push(`${professional.portfolios.length} projets dans le portfolio`);
-      }
-
-      // Skills bonus
-      if (professional.softwareSkills && professional.softwareSkills.length > 0) {
-        score += Math.min(professional.softwareSkills.length * 1, 5);
-      }
-
-      // Premium bonus
-      if (professional.isPremium) {
-        score += 5;
-        reasons.push('Profil Premium');
-      }
-
-      // Only include if score is above threshold
       if (score >= 60) {
         matches.push({
           professionalId: professional.id,
-          score: Math.min(score, 100), // Cap at 100
-          reasoning: reasons.join(', ') || 'Profil correspondant',
+          score: Math.min(score, 100),
+          reasoning: reasons.join(' • ') || 'Profil correspondant',
         });
       }
     }
 
-    // Sort by score descending and take top 10
     return matches.sort((a, b) => b.score - a.score).slice(0, 10);
   }
 }

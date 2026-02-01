@@ -568,3 +568,65 @@ export async function analyzeImagesWithVision(
   throw new Error('Failed to parse Vision API response');
   */
 }
+
+/**
+ * Generic text generation using Gemini
+ */
+export class GeminiService {
+  async generateText(prompt: string): Promise<string> {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    try {
+      const requestBody = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 2048,
+        },
+      };
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`API error: ${response.status} - ${errorData}`);
+      }
+
+      const data = (await response.json()) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!text) {
+        throw new Error('No text in response');
+      }
+
+      return text;
+    } catch (error) {
+      console.error('Gemini text generation error:', error);
+      throw error;
+    }
+  }
+}
+
+export const geminiService = new GeminiService();
+
