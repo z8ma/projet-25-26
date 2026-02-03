@@ -375,15 +375,15 @@ export default function Brainstorming() {
   const openContactModal = (match: any) => {
     setSelectedMatch(match);
     setContactModalOpen(true);
-    setContactMessage(`Bonjour,\n\nJe suis intéressé par votre profil pour mon projet "${currentConversation?.projectTitle}". Seriez-vous disponible pour discuter?\n\nCordialement`);
+    setContactMessage('');
   };
 
   const contactProfessional = async () => {
-    if (!selectedMatch || !contactMessage.trim()) return;
+    if (!selectedMatch) return;
 
     try {
       const response = await matchingApi.contactProfessional(selectedMatch.id, {
-        message: contactMessage,
+        message: contactMessage || '',
       });
 
       if (response.success) {
@@ -466,23 +466,21 @@ export default function Brainstorming() {
         <div className="fixed inset-0 z-[100] bg-gradient-to-br from-primary-50 via-white to-purple-50 flex items-center justify-center">
           <div className="text-center">
             {/* Logo with pulse and blur animation */}
-            <div className="relative mb-8">
+            <div className="relative w-32 h-32 mx-auto mb-8 flex items-center justify-center">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-32 h-32 bg-gradient-to-br from-primary-500/20 to-purple-500/20 rounded-full animate-ping"></div>
               </div>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-24 h-24 bg-gradient-to-br from-primary-400/30 to-purple-400/30 rounded-full animate-pulse"></div>
               </div>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <img
-                  src="/logo.png"
-                  alt="JUNY"
-                  className="w-20 h-20 object-contain animate-breathing"
-                  style={{
-                    filter: 'drop-shadow(0 4px 20px rgba(255, 121, 0, 0.4))',
-                  }}
-                />
-              </div>
+              <img
+                src="/logo.png"
+                alt="JUNY"
+                className="relative z-10 w-20 h-20 object-contain animate-breathing"
+                style={{
+                  filter: 'drop-shadow(0 4px 20px rgba(255, 121, 0, 0.4))',
+                }}
+              />
             </div>
 
             {/* Text with gradient animation */}
@@ -1419,13 +1417,27 @@ export default function Brainstorming() {
               </div>
             </div>
 
-            <textarea
-              value={contactMessage}
-              onChange={(e) => setContactMessage(e.target.value)}
-              rows={6}
-              className="w-full px-4 py-3 bg-gray-100 border-0 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500 transition-all resize-none mb-6"
-              placeholder="Votre message..."
-            />
+            <div className="bg-gray-50 rounded-xl p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-primary-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-gray-600">
+                  L'IA va automatiquement générer un résumé détaillé de votre projet à partir de votre brainstorming et l'envoyer au professionnel.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Message additionnel (optionnel)</label>
+              <textarea
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-3 bg-gray-100 border-0 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500 transition-all resize-none"
+                placeholder="Ajouter un message personnel..."
+              />
+            </div>
 
             <div className="flex gap-3">
               <button
@@ -1436,10 +1448,9 @@ export default function Brainstorming() {
               </button>
               <button
                 onClick={contactProfessional}
-                disabled={!contactMessage.trim()}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-medium disabled:opacity-50 transition-all"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-medium transition-all"
               >
-                Envoyer
+                Contacter
               </button>
             </div>
           </div>

@@ -67,6 +67,7 @@ export class ProfessionalController {
         availability,
         bio,
         otherProfession,
+        profilePictureUrl,
         // Nouveaux champs IA Matching
         missionTypes,
         otherMissionType,
@@ -74,6 +75,11 @@ export class ProfessionalController {
         preferredCollabTypes,
         minimumBudget,
         exclusions,
+        // Préférences de notifications
+        notifyNewMatch,
+        notifyMessage,
+        notifyProjectUpdate,
+        notifyEmail,
       } = req.body;
 
       const professional = await prisma.professional.update({
@@ -86,6 +92,7 @@ export class ProfessionalController {
           availability,
           bio,
           otherProfession,
+          profilePictureUrl,
           // Nouveaux champs IA Matching
           missionTypes: missionTypes || undefined,
           otherMissionType,
@@ -93,6 +100,11 @@ export class ProfessionalController {
           preferredCollabTypes: preferredCollabTypes || undefined,
           minimumBudget: minimumBudget ? parseFloat(minimumBudget) : undefined,
           exclusions: exclusions || undefined,
+          // Préférences de notifications
+          notifyNewMatch: notifyNewMatch !== undefined ? notifyNewMatch : undefined,
+          notifyMessage: notifyMessage !== undefined ? notifyMessage : undefined,
+          notifyProjectUpdate: notifyProjectUpdate !== undefined ? notifyProjectUpdate : undefined,
+          notifyEmail: notifyEmail !== undefined ? notifyEmail : undefined,
         },
       });
 
@@ -1027,12 +1039,68 @@ export class ProfessionalController {
         },
       });
 
+      // Get favorites count
+      const favoritesCount = await prisma.savedProfessional.count({
+        where: {
+          professionalId: professional.id,
+        },
+      });
+
       // Get active missions count
       const activeMissions = await prisma.match.count({
         where: {
           professionalId: professional.id,
           status: 'ACCEPTED',
           projectStatus: { in: ['IN_PROGRESS', 'NOT_STARTED'] },
+        },
+      });
+
+      // Total matches received (all time)
+      const totalMatches = await prisma.match.count({
+        where: {
+          professionalId: professional.id,
+        },
+      });
+
+      // Recommendation appearances (PROPOSED matches = appeared in search results)
+      const recommendationAppearances = await prisma.match.count({
+        where: {
+          professionalId: professional.id,
+          status: { in: ['PROPOSED', 'CONTACTED', 'ACCEPTED', 'DECLINED'] },
+        },
+      });
+
+      // Get active projects (IN_PROGRESS, REVIEW, NOT_STARTED with ACCEPTED status)
+      const activeProjects = await prisma.match.findMany({
+        where: {
+          professionalId: professional.id,
+          status: 'ACCEPTED',
+          projectStatus: { in: ['NOT_STARTED', 'IN_PROGRESS', 'REVIEW'] },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 10,
+        include: {
+          conversation: {
+            select: {
+              projectTitle: true,
+              projectSummary: true,
+              creator: {
+                select: {
+                  companyName: true,
+                  industry: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Projects in review
+      const reviewProjects = await prisma.match.count({
+        where: {
+          professionalId: professional.id,
+          status: 'ACCEPTED',
+          projectStatus: 'REVIEW',
         },
       });
 
@@ -1046,6 +1114,10 @@ export class ProfessionalController {
             profileCompleteness: professional.profileCompleteness,
             pendingMissions,
             activeMissions,
+            favoritesCount,
+            totalMatches,
+            recommendationAppearances,
+            reviewProjects,
           },
           ratings: ratings.map((r) => ({
             id: r.id,
@@ -1066,6 +1138,15 @@ export class ProfessionalController {
             rating: p.rating?.rating,
           })),
           recentCollaborators,
+          activeProjects: activeProjects.map((p) => ({
+            id: p.id,
+            projectTitle: p.conversation?.projectTitle,
+            projectSummary: p.conversation?.projectSummary,
+            clientName: p.conversation?.creator?.companyName,
+            clientIndustry: p.conversation?.creator?.industry,
+            projectStatus: p.projectStatus,
+            updatedAt: p.updatedAt,
+          })),
         },
       });
     } catch (error: any) {

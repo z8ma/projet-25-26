@@ -310,6 +310,11 @@ export const matchingApi = {
     return response.data;
   },
 
+  getConversationsProfessional: async () => {
+    const response = await api.get('/api/matching/conversations/professional');
+    return response.data;
+  },
+
   getMessages: async (matchId: string) => {
     const response = await api.get(`/api/matching/matches/${matchId}/messages`);
     return response.data;
@@ -448,6 +453,52 @@ export const uploadApi = {
         }
       },
     });
+    return response.data;
+  },
+};
+
+// Calendar API
+export const calendarApi = {
+  getEvents: async (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    const response = await api.get(`/api/calendar/events${params.toString() ? '?' + params.toString() : ''}`);
+    return response.data;
+  },
+
+  createEvent: async (data: {
+    type: 'TIME_OFF' | 'EXTERNAL_MISSION' | 'REMINDER';
+    title: string;
+    description?: string;
+    startDate: string;
+    endDate?: string;
+    isAllDay?: boolean;
+    color?: string;
+    clientName?: string;
+    budget?: number;
+  }) => {
+    const response = await api.post('/api/calendar/events', data);
+    return response.data;
+  },
+
+  updateEvent: async (id: string, data: {
+    type?: 'TIME_OFF' | 'EXTERNAL_MISSION' | 'REMINDER';
+    title?: string;
+    description?: string;
+    startDate?: string;
+    endDate?: string;
+    isAllDay?: boolean;
+    color?: string;
+    clientName?: string;
+    budget?: number;
+  }) => {
+    const response = await api.put(`/api/calendar/events/${id}`, data);
+    return response.data;
+  },
+
+  deleteEvent: async (id: string) => {
+    const response = await api.delete(`/api/calendar/events/${id}`);
     return response.data;
   },
 };

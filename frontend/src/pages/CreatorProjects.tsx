@@ -151,11 +151,18 @@ export default function CreatorProjects() {
   });
 
   const getProjectProgress = (conversation: Conversation): number => {
-    if (conversation.status === 'IN_PROGRESS') return 20;
     if (conversation.status === 'ABANDONED') return 0;
 
+    const hasContacted = conversation.matches.some(m => m.status === 'CONTACTED');
+    const hasProposed = conversation.matches.some(m => m.status === 'PROPOSED');
     const acceptedMatches = conversation.matches.filter(m => m.status === 'ACCEPTED');
-    if (acceptedMatches.length === 0) return 40;
+
+    // Pas encore de matches acceptés
+    if (acceptedMatches.length === 0) {
+      if (hasContacted) return 25;
+      if (hasProposed) return 15;
+      return 5;
+    }
 
     const completedCount = acceptedMatches.filter(m => m.projectStatus === 'COMPLETED').length;
     const inProgressCount = acceptedMatches.filter(m => m.projectStatus === 'IN_PROGRESS').length;
@@ -163,9 +170,10 @@ export default function CreatorProjects() {
 
     if (completedCount === acceptedMatches.length) return 100;
 
-    const progress = 40 +
+    // Base 20% pour avoir des matches acceptés, puis progression selon l'avancement
+    const progress = 20 +
       (inProgressCount * 20 / acceptedMatches.length) +
-      (reviewCount * 30 / acceptedMatches.length) +
+      (reviewCount * 40 / acceptedMatches.length) +
       (completedCount * 60 / acceptedMatches.length);
 
     return Math.min(Math.round(progress), 100);

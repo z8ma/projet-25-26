@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../config/prisma.js';
 import { NotificationController } from './notification.controller.js';
 import { matchingService } from '../services/matching.service.js';
+import { geminiService } from '../services/gemini.service.js';
 
 export class MatchingController {
   // POST /api/matching/conversations/:conversationId/match - Generate matches for conversation
@@ -225,15 +226,67 @@ export class MatchingController {
         data: { status: 'CONTACTED' },
       });
 
-      // Create message to professional
-      if (message) {
+      // Generate AI summary from brainstorming conversation
+      const conversation = await prisma.aiConversation.findUnique({
+        where: { id: match.conversationId },
+        select: {
+          projectTitle: true,
+          projectSummary: true,
+          projectInsights: true,
+          messages: true,
+        },
+      });
+
+      let summaryMessage = message || '';
+
+      if (!message && conversation) {
+        try {
+          const insights = conversation.projectInsights as any;
+          const messages = (conversation.messages as any[]) || [];
+          const userMessages = messages
+            .filter((m: any) => m.role === 'user')
+            .map((m: any) => m.content)
+            .join('\n');
+
+          const prompt = `Tu es l'assistant de la plateforme JUNY. Un créateur souhaite contacter un professionnel pour un projet.
+Génère un message de présentation du projet clair et professionnel (en français, 150-200 mots max) à partir des informations suivantes.
+Le message doit résumer : le contexte du projet, les besoins principaux, le budget s'il est mentionné, le délai s'il est mentionné, et le style recherché.
+N'ajoute pas de formule de politesse au début ni à la fin, juste le contenu descriptif du projet.
+
+Titre du projet : ${conversation.projectTitle || 'Non défini'}
+Résumé : ${conversation.projectSummary || 'Non disponible'}
+Insights extraits : ${insights ? JSON.stringify(insights) : 'Aucun'}
+Messages du créateur : ${userMessages || 'Aucun'}`;
+
+          summaryMessage = await geminiService.generateText(prompt);
+        } catch (err) {
+          console.error('Error generating AI summary:', err);
+          summaryMessage = `Bonjour,\n\nJe vous contacte concernant mon projet "${match.conversation.projectTitle}". ${conversation.projectSummary || ''}\n\nJe serais ravi d'en discuter avec vous.`;
+        }
+      }
+
+      // Create AI summary message to professional
+      if (summaryMessage) {
         await prisma.message.create({
           data: {
             senderId: userId,
             receiverId: match.professional.userId,
             matchId: matchId as string,
             subject: `Nouveau projet: ${match.conversation.projectTitle}`,
-            content: message,
+            content: summaryMessage,
+          },
+        });
+      }
+
+      // Create additional personal message if provided
+      if (message && message.trim()) {
+        await prisma.message.create({
+          data: {
+            senderId: userId,
+            receiverId: match.professional.userId,
+            matchId: matchId as string,
+            subject: `Re: ${match.conversation.projectTitle}`,
+            content: message.trim(),
           },
         });
       }
@@ -256,6 +309,104 @@ export class MatchingController {
       res.status(500).json({
         success: false,
         message: error.message || 'Erreur lors du contact',
+      });
+    }
+  }
+
+  // GET /api/matching/conversations/professional - Get all conversations with messages for professional
+  async getConversationsProfessional(req: Request, res: Response) {
+    try {
+      const userId = req.userId as string;
+
+      const professional = await prisma.professional.findUnique({
+        where: { userId },
+      });
+
+      if (!professional) {
+        return res.status(404).json({
+          success: false,
+          message: 'Profil professionnel non trouvé',
+        });
+      }
+
+      const matches = await prisma.match.findMany({
+        where: {
+          professionalId: professional.id,
+          status: {
+            in: ['CONTACTED', 'ACCEPTED', 'DECLINED'],
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          conversation: {
+            select: {
+              id: true,
+              projectTitle: true,
+              projectSummary: true,
+              status: true,
+              creator: {
+                select: {
+                  id: true,
+                  companyName: true,
+                  industry: true,
+                  userId: true,
+                  user: {
+                    select: {
+                      id: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          professional: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const conversationsWithMessages = await Promise.all(
+        matches.map(async (match) => {
+          const messages = await prisma.message.findMany({
+            where: { matchId: match.id },
+            orderBy: { createdAt: 'asc' },
+          });
+
+          const unreadCount = messages.filter(
+            (m) => m.receiverId === userId && !m.isRead
+          ).length;
+
+          return {
+            ...match,
+            messages,
+            unreadCount,
+            lastMessage: messages[messages.length - 1] || null,
+          };
+        })
+      );
+
+      conversationsWithMessages.sort((a, b) => {
+        const dateA = a.lastMessage?.createdAt || new Date(0);
+        const dateB = b.lastMessage?.createdAt || new Date(0);
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+
+      res.json({
+        success: true,
+        data: conversationsWithMessages,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la récupération des conversations',
       });
     }
   }

@@ -14,6 +14,7 @@ import subscriptionRoutes from './routes/subscription.routes.js';
 import favoritesRoutes from './routes/favorites.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
+import calendarRoutes from './routes/calendar.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,6 +57,7 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
