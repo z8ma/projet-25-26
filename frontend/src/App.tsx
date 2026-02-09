@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
+import { SidebarProvider } from './contexts/SidebarContext';
 import LandingPage from './pages/LandingPage';
 import ProfessionalLanding from './pages/ProfessionalLanding';
 import Pricing from './pages/Pricing';
@@ -13,8 +14,20 @@ import CreatorProjects from './pages/CreatorProjects';
 import Messages from './pages/Messages';
 import Brainstorming from './pages/Brainstorming';
 import Settings from './pages/Settings';
+import ProfessionalSettings from './pages/ProfessionalSettings';
 import SavedProfessionals from './pages/SavedProfessionals';
 import ExploreProfessionals from './pages/ExploreProfessionals';
+
+// Settings Router Component
+function SettingsRouter() {
+  const { user } = useAuthStore();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return user.role === 'PROFESSIONAL' ? <ProfessionalSettings /> : <Settings />;
+}
 
 function App() {
   const { loadUser, token, user } = useAuthStore();
@@ -28,8 +41,9 @@ function App() {
   }, [token, loadUser]);
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <SidebarProvider>
+      <BrowserRouter>
+        <Routes>
         <Route path="/" element={(token && user) ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
         <Route path="/professionnels" element={<ProfessionalLanding />} />
         <Route path="/pricing" element={<Pricing />} />
@@ -42,11 +56,12 @@ function App() {
         <Route path="/messages" element={<Messages />} />
         <Route path="/brainstorming" element={<Brainstorming />} />
         <Route path="/brainstorming/:conversationId" element={<Brainstorming />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<SettingsRouter />} />
         <Route path="/favorites" element={<SavedProfessionals />} />
         <Route path="/explore" element={<ExploreProfessionals />} />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </SidebarProvider>
   );
 }
 

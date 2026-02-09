@@ -104,46 +104,53 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d')!;
       const img = imageRef.current!;
+      const container = containerRef.current!;
 
-      const size = 400;
-      canvas.width = size;
-      canvas.height = size;
+      // Output size (high quality)
+      const outputSize = 400;
+      canvas.width = outputSize;
+      canvas.height = outputSize;
 
       // Create circular clipping path
       ctx.beginPath();
-      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
 
-      // Calculate the size of the original image when displayed
-      const naturalWidth = img.naturalWidth;
-      const naturalHeight = img.naturalHeight;
+      // Circle radius in the preview (150px = 300px diameter / 2)
+      const circleRadius = 150;
+      const circleDiameter = circleRadius * 2;
 
-      // Calculate aspect ratio
-      const aspectRatio = naturalWidth / naturalHeight;
+      // Get the actual displayed size of the image (without zoom transform)
+      const imgRect = img.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
 
-      // Calculate the displayed size (before zoom and position)
-      let displayWidth, displayHeight;
-      if (aspectRatio > 1) {
-        // Landscape
-        displayWidth = 400;
-        displayHeight = 400 / aspectRatio;
-      } else {
-        // Portrait or square
-        displayHeight = 400;
-        displayWidth = 400 * aspectRatio;
-      }
+      // The base size of the displayed image (before zoom)
+      // This accounts for CSS maxWidth/maxHeight constraints
+      const baseDisplayWidth = imgRect.width / zoom;
+      const baseDisplayHeight = imgRect.height / zoom;
 
-      // Apply zoom
-      displayWidth *= zoom;
-      displayHeight *= zoom;
+      // Scale from preview circle to output canvas
+      const scaleFactor = outputSize / circleDiameter;
 
-      // Calculate the position on canvas (center + offset)
-      const canvasX = size / 2 - displayWidth / 2 + position.x;
-      const canvasY = size / 2 - displayHeight / 2 + position.y;
+      // Calculate the zoomed display size
+      const zoomedWidth = baseDisplayWidth * zoom;
+      const zoomedHeight = baseDisplayHeight * zoom;
+
+      // Position of image center relative to container center
+      const containerCenterX = containerRect.width / 2;
+      const containerCenterY = containerRect.height / 2;
+
+      // Draw size on canvas
+      const drawWidth = zoomedWidth * scaleFactor;
+      const drawHeight = zoomedHeight * scaleFactor;
+
+      // Draw position (centered + offset)
+      const drawX = (outputSize / 2) - (drawWidth / 2) + (position.x * scaleFactor);
+      const drawY = (outputSize / 2) - (drawHeight / 2) + (position.y * scaleFactor);
 
       // Draw the image
-      ctx.drawImage(img, canvasX, canvasY, displayWidth, displayHeight);
+      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
       canvas.toBlob((blob) => {
         resolve(blob!);
@@ -203,7 +210,7 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
             >
               {currentImageUrl ? 'Changer' : 'Ajouter'}
             </button>
@@ -241,7 +248,7 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
             <div
               ref={containerRef}
               className="relative bg-gray-900 rounded-xl overflow-hidden mb-4 select-none"
-              style={{ height: '400px' }}
+              style={{ height: '350px' }}
             >
               <div
                 className={`absolute inset-0 flex items-center justify-center touch-none ${
@@ -259,9 +266,14 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
                   ref={imageRef}
                   src={previewUrl}
                   alt="Preview"
-                  className="max-w-none select-none"
+                  className="select-none"
                   style={{
+                    maxWidth: '350px',
+                    maxHeight: '350px',
+                    width: 'auto',
+                    height: 'auto',
                     transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
+                    transformOrigin: 'center center',
                     transition: isDragging ? 'none' : 'transform 0.2s ease-out',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
@@ -270,26 +282,24 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
                 />
               </div>
 
-              {/* Circular Overlay */}
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="relative" style={{ width: '360px', height: '360px' }}>
-                  <svg width="100%" height="100%" viewBox="0 0 360 360">
-                    <defs>
-                      <mask id="circleMask">
-                        <rect width="360" height="360" fill="white" />
-                        <circle cx="180" cy="180" r="180" fill="black" />
-                      </mask>
-                    </defs>
-                    <rect width="360" height="360" fill="black" opacity="0.65" mask="url(#circleMask)" />
-                    <circle cx="180" cy="180" r="179" fill="none" stroke="white" strokeWidth="2" strokeDasharray="6 3" opacity="0.9" />
-                  </svg>
-                </div>
+              {/* Circular Overlay - 300px circle centered in preview */}
+              <div className="absolute inset-0 pointer-events-none">
+                <svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+                  <defs>
+                    <mask id="circleMask">
+                      <rect width="100%" height="100%" fill="white" />
+                      <circle cx="50%" cy="50%" r="150" fill="black" />
+                    </mask>
+                  </defs>
+                  <rect width="100%" height="100%" fill="black" opacity="0.7" mask="url(#circleMask)" />
+                  <circle cx="50%" cy="50%" r="149" fill="none" stroke="white" strokeWidth="2" opacity="0.9" />
+                </svg>
               </div>
 
               {/* Instructions */}
               <div className="absolute top-4 left-0 right-0 text-center pointer-events-none">
                 <div className={`inline-block text-white text-sm px-4 py-2 rounded-full transition-all ${
-                  isDragging ? 'bg-primary-500/90' : 'bg-black/50'
+                  isDragging ? 'bg-purple-600/90' : 'bg-black/50'
                 }`}>
                   {isDragging ? 'Déplacement en cours...' : 'Glissez pour repositionner'}
                 </div>
@@ -354,14 +364,14 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
 
             {/* Upload Progress */}
             {isUploading && (
-              <div className="mb-4 p-3 bg-primary-50 rounded-xl">
+              <div className="mb-4 p-3 bg-purple-50 rounded-xl">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-primary-700 font-medium">Upload en cours...</span>
                   <span className="text-sm text-primary-600">{uploadProgress}%</span>
                 </div>
                 <div className="w-full bg-primary-200 rounded-full h-2">
                   <div
-                    className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
@@ -384,7 +394,7 @@ export default function ProfilePictureUpload({ currentImageUrl, onUploadSuccess,
               <button
                 onClick={handleUpload}
                 disabled={isUploading}
-                className="flex-1 px-6 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-all disabled:opacity-50 font-medium shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40 hover:scale-[1.02] active:scale-[0.98]"
+                className="flex-1 px-6 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50 font-medium shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40 hover:scale-[1.02] active:scale-[0.98]"
               >
                 {isUploading ? 'Upload...' : 'Enregistrer'}
               </button>

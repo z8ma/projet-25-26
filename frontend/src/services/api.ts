@@ -128,6 +128,8 @@ export const professionalApi = {
     availability?: string;
     bio?: string;
     otherProfession?: string;
+    profilePictureUrl?: string | null;
+    bannerUrl?: string | null;
     // Nouveaux champs IA Matching
     missionTypes?: string[];
     otherMissionType?: string;
@@ -135,6 +137,11 @@ export const professionalApi = {
     preferredCollabTypes?: string[];
     minimumBudget?: number;
     exclusions?: string[];
+    // Notification preferences
+    notifyNewMatch?: boolean;
+    notifyMessage?: boolean;
+    notifyProjectUpdate?: boolean;
+    notifyEmail?: boolean;
   }) => {
     const response = await api.put('/api/professionals/profile', data);
     return response.data;

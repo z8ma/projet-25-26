@@ -6,6 +6,7 @@ import FavoriteButton from '../components/FavoriteButton';
 import FilterDropdown from '../components/FilterDropdown';
 import ExternalLinkWarning from '../components/ExternalLinkWarning';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 interface Professional {
   id: string;
@@ -73,6 +74,11 @@ export default function ExploreProfessionals() {
   // Selected professional for detail view
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Scroll animations
+  const headerAnimation = useScrollAnimation();
+  const searchAnimation = useScrollAnimation();
+  const professionalsAnimation = useScrollAnimation();
 
   useEffect(() => {
     loadProfessions();
@@ -189,7 +195,12 @@ export default function ExploreProfessionals() {
     <CreatorLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div
+          ref={headerAnimation.ref}
+          className={`flex flex-col sm:flex-row sm:items-end justify-between gap-4 transition-all duration-700 ${
+            headerAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Explorer</h1>
             <p className="text-gray-500 mt-0.5 text-sm">
@@ -208,7 +219,12 @@ export default function ExploreProfessionals() {
         </div>
 
         {/* Search and Filters - Elegant Design */}
-        <div className="flex flex-col gap-4">
+        <div
+          ref={searchAnimation.ref}
+          className={`flex flex-col gap-4 transition-all duration-700 delay-100 ${
+            searchAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
           {/* Search Bar */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -309,6 +325,12 @@ export default function ExploreProfessionals() {
         </div>
 
         {/* Professionals Grid */}
+        <div
+          ref={professionalsAnimation.ref}
+          className={`transition-all duration-700 delay-200 ${
+            professionalsAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="flex gap-1">
@@ -475,6 +497,7 @@ export default function ExploreProfessionals() {
             })}
           </div>
         )}
+        </div>
 
         {/* Pagination */}
         {totalPages > 1 && (

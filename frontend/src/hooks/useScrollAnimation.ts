@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 
-export const useScrollAnimation = () => {
+export const useScrollAnimation = (deps: any[] = []) => {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Reset visibility when dependencies change
+    setIsVisible(false);
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -21,16 +24,21 @@ export const useScrollAnimation = () => {
       }
     );
 
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
+    // Use a small delay to ensure the element is mounted in the DOM
+    const timer = setTimeout(() => {
+      const currentElement = ref.current;
+      if (currentElement) {
+        observer.observe(currentElement);
+      }
+    }, 10);
 
     return () => {
+      clearTimeout(timer);
       if (ref.current) {
         observer.unobserve(ref.current);
       }
     };
-  }, []);
+  }, deps);
 
   return { ref, isVisible };
 };

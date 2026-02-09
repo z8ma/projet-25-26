@@ -5,6 +5,7 @@ import { aiApi, matchingApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
 import CreditHistoryModal from '../components/CreditHistoryModal';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 interface Match {
   id: string;
@@ -37,6 +38,13 @@ export default function Dashboard() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messageConversations, setMessageConversations] = useState<MessageConversation[]>([]);
   const [showCreditHistory, setShowCreditHistory] = useState(false);
+
+  // Scroll animations
+  const welcomeAnimation = useScrollAnimation();
+  const statsAnimation = useScrollAnimation();
+  const ctaAnimation = useScrollAnimation();
+  const matchesAnimation = useScrollAnimation();
+  const tipsAnimation = useScrollAnimation();
 
   useEffect(() => {
     if (!user) {
@@ -140,7 +148,11 @@ export default function Dashboard() {
   return (
     <CreatorLayout>
       {/* Welcome Section */}
-      <div className="mb-8">
+      <div
+        ref={welcomeAnimation.ref}
+        className={`mb-8 transition-all duration-700 ${welcomeAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+      >
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
           Bonjour, {user.creator?.companyName || 'Créateur'}
         </h1>
@@ -150,27 +162,29 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+      <div
+        ref={statsAnimation.ref}
+        className={`grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 transition-all duration-700 delay-100 ${statsAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+      >
         {stats.map((stat, index) => (
           <div
             key={index}
             onClick={stat.onClick}
             className={`bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ${stat.onClick ? 'cursor-pointer' : ''}`}
           >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
-              stat.color === 'primary' ? 'bg-primary-100 text-primary-600' :
-              stat.color === 'green' ? 'bg-green-100 text-green-600' :
-              stat.color === 'blue' ? 'bg-blue-100 text-blue-600' :
-              'bg-purple-100 text-purple-600'
-            }`}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${stat.color === 'primary' ? 'bg-primary-100 text-primary-600' :
+                stat.color === 'green' ? 'bg-green-100 text-green-600' :
+                  stat.color === 'blue' ? 'bg-blue-100 text-blue-600' :
+                    'bg-purple-100 text-purple-600'
+              }`}>
               {stat.icon}
             </div>
             <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value}</p>
             <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
             <div className="flex items-center gap-1 mt-2">
-              <p className={`text-xs ${
-                stat.changeType === 'positive' ? 'text-green-600' : 'text-gray-400'
-              }`}>
+              <p className={`text-xs ${stat.changeType === 'positive' ? 'text-green-600' : 'text-gray-400'
+                }`}>
                 {stat.change}
               </p>
               {stat.onClick && (
@@ -186,7 +200,11 @@ export default function Dashboard() {
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
         {/* Quick Actions */}
-        <div className="lg:col-span-2 space-y-6">
+        <div
+          ref={ctaAnimation.ref}
+          className={`lg:col-span-2 space-y-6 transition-all duration-700 delay-200 ${ctaAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}
+        >
           {/* CTA Card */}
           <div className="relative overflow-hidden bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl p-6 sm:p-8 text-white">
             <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>

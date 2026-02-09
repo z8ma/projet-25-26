@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useSidebar } from '../contexts/SidebarContext';
 import NotificationDropdown from './NotificationDropdown';
 
 interface CreatorLayoutProps {
@@ -8,7 +9,8 @@ interface CreatorLayoutProps {
 }
 
 export default function CreatorLayout({ children }: CreatorLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isCollapsed, toggleSidebar } = useSidebar();
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -97,30 +99,33 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50">
       {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
+      {mobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed top-0 left-0 z-50 h-full bg-white shadow-xl transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col ${isCollapsed ? 'lg:w-[72px]' : 'lg:w-64'
+          } ${mobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64'}`}
       >
         {/* Sidebar Header */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-gray-100">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+        <div className={`h-16 flex items-center border-b border-gray-100 ${isCollapsed ? 'lg:justify-center lg:px-0 px-4' : 'px-4'}`}>
+          <Link to="/" className={`flex items-center gap-2 ${isCollapsed ? 'lg:justify-center' : ''}`}>
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center">
               <img src="/logo.png" alt="JUNY Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="text-2xl font-bold logo-gradient">JUNY</span>
+            <span className={`text-2xl font-bold logo-gradient whitespace-nowrap transition-all duration-300 overflow-hidden ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'
+              }`}>
+              JUNY
+            </span>
           </Link>
+          {/* Close button for mobile */}
           <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            onClick={() => setMobileMenuOpen(false)}
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors ml-auto"
           >
             <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -128,36 +133,53 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
           </button>
         </div>
 
-        {/* User Badges */}
-        <div className="px-6 py-4 border-b border-gray-100">
+        {/* User Badges - Hidden when collapsed on desktop */}
+        <div className={`px-4 py-3 border-b border-gray-100 transition-all duration-300 overflow-hidden ${isCollapsed ? 'lg:h-0 lg:py-0 lg:opacity-0' : 'h-auto opacity-100'
+          }`}>
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1.5 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
+            <span className="px-2.5 py-1 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
               Créateur
             </span>
-            <span className="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-              Plan Gratuit
+            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+              Gratuit
             </span>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="p-4">
+        <nav className={`flex-1 overflow-y-auto ${isCollapsed ? 'lg:p-0 lg:py-2' : 'p-2'}`}>
           <ul className="space-y-1">
             {menuItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname === item.path ||
+                (item.path === '/brainstorming' && location.pathname.startsWith('/brainstorming'));
               return (
                 <li key={item.path}>
                   <Link
                     to={item.path}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                      isActive
+                    onClick={() => setMobileMenuOpen(false)}
+                    title={isCollapsed ? item.name : undefined}
+                    className={`group relative flex items-center justify-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200
+                      ${isCollapsed
+                        ? 'lg:w-11 lg:h-11 lg:!p-0 lg:!gap-0 lg:!rounded-full lg:mx-auto'
+                        : ''
+                      } ${isActive
                         ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
+                      }`}
                   >
-                    <span className={isActive ? 'text-white' : 'text-gray-400'}>{item.icon}</span>
-                    {item.name}
+                    <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                      {item.icon}
+                    </span>
+                    <span className={`whitespace-nowrap transition-all duration-300 overflow-hidden ${isCollapsed ? 'lg:hidden' : 'w-auto opacity-100'
+                      }`}>
+                      {item.name}
+                    </span>
+                    {/* Tooltip for collapsed mode */}
+                    {isCollapsed && (
+                      <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-[60] hidden lg:block shadow-lg">
+                        {item.name}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
@@ -165,32 +187,62 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
           </ul>
         </nav>
 
-        {/* Spacer to push logout to bottom */}
-        <div className="flex-1"></div>
+        {/* Toggle Button - Desktop only */}
+        <div className="hidden lg:block p-2 border-t border-gray-100">
+          <button
+            onClick={toggleSidebar}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-xl font-medium transition-all duration-200 ${isCollapsed ? 'justify-center' : ''
+              }`}
+            title={isCollapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
+          >
+            <svg
+              className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+            <span className={`whitespace-nowrap transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
+              }`}>
+              Réduire
+            </span>
+          </button>
+        </div>
 
         {/* Sidebar Footer - Logout */}
-        <div className="p-4 pb-6 mt-auto">
-          <div className="mx-2 mb-4 border-t border-gray-200"></div>
+        <div className="p-2 border-t border-gray-100">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-xl font-medium transition-all duration-200"
+            title={isCollapsed ? 'Déconnexion' : undefined}
+            className={`group relative flex items-center gap-3 w-full px-3 py-2.5 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-xl font-medium transition-all duration-200 ${isCollapsed ? 'lg:justify-center lg:px-0' : ''
+              }`}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            Déconnexion
+            <span className={`whitespace-nowrap transition-all duration-300 overflow-hidden ${isCollapsed ? 'lg:w-0 lg:opacity-0' : 'w-auto opacity-100'
+              }`}>
+              Déconnexion
+            </span>
+            {/* Tooltip for collapsed mode */}
+            {isCollapsed && (
+              <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-[60] hidden lg:block shadow-lg">
+                Déconnexion
+              </span>
+            )}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="lg:ml-72">
+      <div className={`transition-all duration-300 ${isCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}>
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100">
-          <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+          <div className="flex items-center justify-between px-4 sm:px-6 h-16">
             {/* Mobile menu button */}
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setMobileMenuOpen(true)}
               className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -251,7 +303,7 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8">
+        <main className="p-4 sm:p-6">
           {children}
         </main>
       </div>

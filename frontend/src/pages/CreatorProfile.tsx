@@ -5,6 +5,7 @@ import { creatorApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
 import ProfilePictureUpload from '../components/ProfilePictureUpload';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 type TabType = 'profile' | 'company' | 'preferences';
 
@@ -101,6 +102,10 @@ export default function CreatorProfile() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  // Scroll animations
+  const headerAnimation = useScrollAnimation([activeTab]);
+  const contentAnimation = useScrollAnimation([activeTab]);
 
   useEffect(() => {
     if (!user || user.role !== 'CREATOR') {
@@ -219,7 +224,12 @@ export default function CreatorProfile() {
   return (
     <CreatorLayout>
       {/* Page Header */}
-      <div className="mb-8">
+      <div
+        ref={headerAnimation.ref}
+        className={`mb-8 transition-all duration-700 ${
+          headerAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -259,7 +269,12 @@ export default function CreatorProfile() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div
+        ref={contentAnimation.ref}
+        className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-700 delay-100 ${
+          contentAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         {/* Tabs */}
         <div className="border-b border-gray-100">
           <nav className="flex overflow-x-auto">

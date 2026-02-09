@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma.js';
+import { deleteImageByUrl } from '../services/upload.service.js';
 
 export class CreatorController {
   // GET /api/creators/profile - Get creator profile
@@ -57,6 +58,23 @@ export class CreatorController {
         linkedinUrl,
         twitterUrl,
       } = req.body;
+
+      // Get current profile to check for old profile picture
+      const currentProfile = await prisma.creator.findUnique({
+        where: { userId },
+        select: {
+          profilePictureUrl: true,
+        },
+      });
+
+      // Delete old profile picture if it's being replaced
+      if (
+        profilePictureUrl &&
+        currentProfile?.profilePictureUrl &&
+        currentProfile.profilePictureUrl !== profilePictureUrl
+      ) {
+        await deleteImageByUrl(currentProfile.profilePictureUrl);
+      }
 
       const creator = await prisma.creator.update({
         where: { userId },

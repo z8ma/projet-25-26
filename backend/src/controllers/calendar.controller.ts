@@ -114,7 +114,7 @@ export class CalendarController {
   async updateEvent(req: Request, res: Response) {
     try {
       const userId = req.userId as string;
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { type, title, description, startDate, endDate, isAllDay, color, clientName, budget } = req.body;
 
       const professional = await prisma.professional.findUnique({
@@ -174,7 +174,7 @@ export class CalendarController {
   async deleteEvent(req: Request, res: Response) {
     try {
       const userId = req.userId as string;
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const professional = await prisma.professional.findUnique({
         where: { userId },

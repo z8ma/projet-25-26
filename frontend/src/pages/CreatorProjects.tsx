@@ -5,6 +5,7 @@ import { aiApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
 import ProjectExportModal from '../components/ProjectExportModal';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 interface Professional {
   id: string;
@@ -53,6 +54,12 @@ export default function CreatorProjects() {
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; project: Conversation | null }>({ open: false, project: null });
   const [deleting, setDeleting] = useState(false);
   const [exportModal, setExportModal] = useState<{ open: boolean; project: Conversation | null }>({ open: false, project: null });
+
+  // Scroll animations
+  const headerAnimation = useScrollAnimation();
+  const statsAnimation = useScrollAnimation();
+  const filtersAnimation = useScrollAnimation();
+  const projectsAnimation = useScrollAnimation();
 
   useEffect(() => {
     if (!token) {
@@ -244,7 +251,12 @@ export default function CreatorProjects() {
   return (
     <CreatorLayout>
       {/* Header */}
-      <div className="mb-8">
+      <div
+        ref={headerAnimation.ref}
+        className={`mb-8 transition-all duration-700 ${
+          headerAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -274,7 +286,12 @@ export default function CreatorProjects() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+        <div
+          ref={statsAnimation.ref}
+          className={`grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 transition-all duration-700 delay-100 ${
+            statsAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center">
@@ -330,7 +347,12 @@ export default function CreatorProjects() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 mt-6">
+        <div
+          ref={filtersAnimation.ref}
+          className={`flex flex-wrap gap-3 mt-6 transition-all duration-700 delay-200 ${
+            filtersAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
           {FILTER_OPTIONS.map((option) => (
             <button
               key={option.id}
@@ -353,6 +375,12 @@ export default function CreatorProjects() {
       </div>
 
       {/* Projects List */}
+      <div
+        ref={projectsAnimation.ref}
+        className={`transition-all duration-700 delay-300 ${
+          projectsAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
       {filteredConversations.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12">
           <div className="flex flex-col items-center justify-center">
@@ -675,6 +703,7 @@ export default function CreatorProjects() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
       </Link>
+      </div>
 
       {/* Delete Confirmation Modal */}
       {deleteModal.open && deleteModal.project && (

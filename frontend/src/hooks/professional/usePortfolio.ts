@@ -132,7 +132,12 @@ export function usePortfolio() {
     }
 
     try {
-      const newPortfolio = await professionalApi.addPortfolio(portfolioForm);
+      const portfolioData = {
+        ...portfolioForm,
+        tags: portfolioForm.tags ? portfolioForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        projectYear: portfolioForm.projectYear ? parseInt(portfolioForm.projectYear) : undefined,
+      };
+      const newPortfolio = await professionalApi.addPortfolio(portfolioData);
       setPortfolios([...portfolios, newPortfolio]);
       resetPortfolioForm();
     } catch (err: any) {
@@ -147,9 +152,14 @@ export function usePortfolio() {
     }
 
     try {
+      const portfolioData = {
+        ...portfolioForm,
+        tags: portfolioForm.tags ? portfolioForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        projectYear: portfolioForm.projectYear ? parseInt(portfolioForm.projectYear) : undefined,
+      };
       const updatedPortfolio = await professionalApi.updatePortfolio(
         editingPortfolio.id,
-        portfolioForm
+        portfolioData
       );
       setPortfolios(
         portfolios.map((p) => (p.id === editingPortfolio.id ? updatedPortfolio : p))

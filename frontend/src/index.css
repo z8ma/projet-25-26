@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 /* Dark mode configuration */
@@ -35,8 +35,8 @@
   --color-accent-purple: #8b5cf6;
   --color-accent-red: #ef4444;
 
-  --font-family-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-family-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-sans: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-family-display: 'Outfit', system-ui, -apple-system, sans-serif;
 
   --shadow-soft: 0 2px 15px -3px rgba(255, 121, 0, 0.1), 0 10px 20px -2px rgba(255, 121, 0, 0.05);
   --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
@@ -67,7 +67,7 @@ body {
   color: rgb(17 24 39);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   margin: 0;
   min-height: 100vh;
 }
@@ -842,6 +842,15 @@ img {
 
 .scale-in {
   animation: scale-in 0.8s ease-out forwards;
+}
+
+/* Lightbox animations */
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* Logo gradient animé */

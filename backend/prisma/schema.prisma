@@ -137,8 +137,9 @@ model Professional {
   experienceYears     Int?     @map("experience_years")
   hourlyRate          Decimal? @map("hourly_rate")
   availability        String?
-  bio                 String?
+  bio                 String?  @db.Text
   profilePictureUrl   String?  @map("profile_picture_url")
+  bannerUrl           String?  @map("banner_url")
   otherProfession     String?  @map("other_profession")
   isPremium           Boolean  @default(false) @map("is_premium")
   projectsCompleted   Int      @default(0) @map("projects_completed")
@@ -163,6 +164,13 @@ model Professional {
   // 4. Ce que le pro NE VEUT PAS faire (exclusions)
   exclusions              Json?     @map("exclusions")
 
+  // Liens sociaux et web
+  websiteUrl              String?  @map("website_url")
+  linkedinUrl             String?  @map("linkedin_url")
+  instagramUrl            String?  @map("instagram_url")
+  twitterUrl              String?  @map("twitter_url")
+  youtubeUrl              String?  @map("youtube_url")
+
   // Profil IA calculé (embeddings et metadata)
   profileEmbedding        String?  @map("profile_embedding") // JSON string des vecteurs
   profileCompleteness     Int      @default(0) @map("profile_completeness")
@@ -183,6 +191,7 @@ model Professional {
   notifications             Notification[]
   savedBy                   SavedProfessional[]
   calendarEvents            CalendarEvent[]
+  profileViews              ProfileView[]
 
   @@index([isPremium])
   @@index([availability])
@@ -525,4 +534,31 @@ enum CalendarEventType {
   REMINDER        // Rappel personnel
 
   @@map("calendar_event_type")
+}
+
+// Profile Views tracking (for analytics)
+model ProfileView {
+  id             String          @id @default(uuid())
+  professionalId String          @map("professional_id")
+  source         ProfileViewSource
+  viewedAt       DateTime        @default(now()) @map("viewed_at")
+  ipAddress      String?         @map("ip_address") // Optional for deduplication
+  userAgent      String?         @map("user_agent")  // Optional for analytics
+
+  // Relations
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@index([professionalId])
+  @@index([viewedAt])
+  @@index([source])
+  @@map("profile_views")
+}
+
+enum ProfileViewSource {
+  AI_RECOMMENDATION  // Vue depuis une recommandation IA (matching)
+  DIRECT_SEARCH      // Recherche directe / explore
+  FROM_FAVORITES     // Depuis la liste des favoris
+  LINK_SHARING       // Partage de lien direct
+
+  @@map("profile_view_source")
 }

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma.js';
 import { validateExternalUrl, validateExternalUrlWithSafeBrowsing } from '../utils/urlValidator.js';
+import { deleteImageByUrl } from '../services/upload.service.js';
 
 const MAX_PORTFOLIO_ITEMS = 20;
 
@@ -68,6 +69,7 @@ export class ProfessionalController {
         bio,
         otherProfession,
         profilePictureUrl,
+        bannerUrl,
         // Nouveaux champs IA Matching
         missionTypes,
         otherMissionType,
@@ -75,12 +77,45 @@ export class ProfessionalController {
         preferredCollabTypes,
         minimumBudget,
         exclusions,
+        // Social links
+        websiteUrl,
+        linkedinUrl,
+        instagramUrl,
+        twitterUrl,
+        youtubeUrl,
         // Préférences de notifications
         notifyNewMatch,
         notifyMessage,
         notifyProjectUpdate,
         notifyEmail,
       } = req.body;
+
+      // Get current profile to check for old images
+      const currentProfile = await prisma.professional.findUnique({
+        where: { userId },
+        select: {
+          profilePictureUrl: true,
+          bannerUrl: true,
+        },
+      });
+
+      // Delete old profile picture if it's being replaced
+      if (
+        profilePictureUrl &&
+        currentProfile?.profilePictureUrl &&
+        currentProfile.profilePictureUrl !== profilePictureUrl
+      ) {
+        await deleteImageByUrl(currentProfile.profilePictureUrl);
+      }
+
+      // Delete old banner if it's being replaced
+      if (
+        bannerUrl &&
+        currentProfile?.bannerUrl &&
+        currentProfile.bannerUrl !== bannerUrl
+      ) {
+        await deleteImageByUrl(currentProfile.bannerUrl);
+      }
 
       const professional = await prisma.professional.update({
         where: { userId },
@@ -93,6 +128,7 @@ export class ProfessionalController {
           bio,
           otherProfession,
           profilePictureUrl,
+          bannerUrl,
           // Nouveaux champs IA Matching
           missionTypes: missionTypes || undefined,
           otherMissionType,
@@ -100,6 +136,12 @@ export class ProfessionalController {
           preferredCollabTypes: preferredCollabTypes || undefined,
           minimumBudget: minimumBudget ? parseFloat(minimumBudget) : undefined,
           exclusions: exclusions || undefined,
+          // Social links
+          websiteUrl: websiteUrl || undefined,
+          linkedinUrl: linkedinUrl || undefined,
+          instagramUrl: instagramUrl || undefined,
+          twitterUrl: twitterUrl || undefined,
+          youtubeUrl: youtubeUrl || undefined,
           // Préférences de notifications
           notifyNewMatch: notifyNewMatch !== undefined ? notifyNewMatch : undefined,
           notifyMessage: notifyMessage !== undefined ? notifyMessage : undefined,
@@ -547,9 +589,30 @@ export class ProfessionalController {
     try {
       const { id } = req.params;
 
+      // Get portfolio item to retrieve image URL before deletion
+      const portfolioItem = await prisma.portfolio.findUnique({
+        where: { id: id as string },
+        select: { imageUrl: true },
+      });
+
+      if (!portfolioItem) {
+        return res.status(404).json({
+          success: false,
+          message: 'Projet portfolio non trouvé',
+        });
+      }
+
+      // Delete from database first
       await prisma.portfolio.delete({
         where: { id: id as string },
       });
+
+      // Then delete image from Cloudinary (don't await - let it run in background)
+      if (portfolioItem.imageUrl) {
+        deleteImageByUrl(portfolioItem.imageUrl).catch((err) => {
+          console.error('Failed to delete portfolio image from Cloudinary:', err);
+        });
+      }
 
       res.json({
         success: true,
@@ -1070,6 +1133,27 @@ export class ProfessionalController {
         },
       });
 
+      // Profile view statistics by source
+      const profileViewsBySource = await prisma.profileView.groupBy({
+        by: ['source'],
+        where: {
+          professionalId: professional.id,
+        },
+        _count: {
+          id: true,
+        },
+      });
+
+      // Transform to easier format
+      const viewSources = {
+        aiRecommendation: profileViewsBySource.find((v) => v.source === 'AI_RECOMMENDATION')?._count.id || 0,
+        directSearch: profileViewsBySource.find((v) => v.source === 'DIRECT_SEARCH')?._count.id || 0,
+        fromFavorites: profileViewsBySource.find((v) => v.source === 'FROM_FAVORITES')?._count.id || 0,
+        linkSharing: profileViewsBySource.find((v) => v.source === 'LINK_SHARING')?._count.id || 0,
+      };
+
+      const totalViews = viewSources.aiRecommendation + viewSources.directSearch + viewSources.fromFavorites + viewSources.linkSharing;
+
       // Get active projects (IN_PROGRESS, REVIEW, NOT_STARTED with ACCEPTED status)
       const activeProjects = await prisma.match.findMany({
         where: {
@@ -1118,6 +1202,9 @@ export class ProfessionalController {
             totalMatches,
             recommendationAppearances,
             reviewProjects,
+            // Profile view statistics
+            totalViews,
+            viewSources,
           },
           ratings: ratings.map((r) => ({
             id: r.id,

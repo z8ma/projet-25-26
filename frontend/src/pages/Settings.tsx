@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import CreatorLayout from '../components/CreatorLayout';
 import { api, subscriptionApi } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 interface Subscription {
   id?: string;
@@ -52,6 +53,12 @@ export default function Settings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Scroll animations
+  const headerAnimation = useScrollAnimation();
+  const subscriptionAnimation = useScrollAnimation();
+  const passwordAnimation = useScrollAnimation();
+  const deleteAnimation = useScrollAnimation();
 
   // Load subscription
   useEffect(() => {
@@ -189,7 +196,12 @@ export default function Settings() {
     <CreatorLayout>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div
+          ref={headerAnimation.ref}
+          className={`mb-8 transition-all duration-700 ${
+            headerAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
             Parametres du compte
           </h1>
@@ -215,7 +227,12 @@ export default function Settings() {
 
         {/* Subscription Section */}
         {user?.role === 'CREATOR' && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+          <div
+            ref={subscriptionAnimation.ref}
+            className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 transition-all duration-700 delay-100 ${
+              subscriptionAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}
+          >
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -410,7 +427,12 @@ export default function Settings() {
         </div>
 
         {/* Change Password */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+        <div
+          ref={passwordAnimation.ref}
+          className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 transition-all duration-700 delay-200 ${
+            passwordAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -493,7 +515,12 @@ export default function Settings() {
         </div>
 
         {/* Danger Zone */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-red-200 mb-6">
+        <div
+          ref={deleteAnimation.ref}
+          className={`bg-white rounded-2xl p-6 shadow-sm border border-red-200 mb-6 transition-all duration-700 delay-300 ${
+            deleteAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
           <h2 className="text-lg font-semibold text-red-600 mb-4 flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />

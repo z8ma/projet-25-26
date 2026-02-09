@@ -89,6 +89,42 @@ export async function uploadImage(
 }
 
 /**
+ * Extract publicId from Cloudinary URL
+ * Example: https://res.cloudinary.com/demo/image/upload/v1234567/juny/profile/abc123.jpg
+ * Returns: juny/profile/abc123
+ */
+export function extractPublicIdFromUrl(cloudinaryUrl: string | null | undefined): string | null {
+  if (!cloudinaryUrl) return null;
+
+  try {
+    // Check if it's a Cloudinary URL
+    if (!cloudinaryUrl.includes('cloudinary.com')) {
+      return null;
+    }
+
+    // Extract the path after /upload/ or /upload/vXXXXXXX/
+    const uploadIndex = cloudinaryUrl.indexOf('/upload/');
+    if (uploadIndex === -1) return null;
+
+    let pathAfterUpload = cloudinaryUrl.substring(uploadIndex + '/upload/'.length);
+
+    // Remove version (vXXXXXXX/) if present
+    pathAfterUpload = pathAfterUpload.replace(/^v\d+\//, '');
+
+    // Remove file extension
+    const lastDotIndex = pathAfterUpload.lastIndexOf('.');
+    if (lastDotIndex !== -1) {
+      pathAfterUpload = pathAfterUpload.substring(0, lastDotIndex);
+    }
+
+    return pathAfterUpload;
+  } catch (error) {
+    console.error('Error extracting publicId from URL:', error);
+    return null;
+  }
+}
+
+/**
  * Delete image from Cloudinary
  */
 export async function deleteImage(publicId: string): Promise<void> {
@@ -97,5 +133,27 @@ export async function deleteImage(publicId: string): Promise<void> {
   } catch (error) {
     console.error('Cloudinary delete error:', error);
     throw new Error('Failed to delete image from Cloudinary');
+  }
+}
+
+/**
+ * Delete image from Cloudinary by URL
+ * Convenience function that extracts publicId from URL and deletes it
+ */
+export async function deleteImageByUrl(cloudinaryUrl: string | null | undefined): Promise<void> {
+  if (!cloudinaryUrl) return;
+
+  const publicId = extractPublicIdFromUrl(cloudinaryUrl);
+  if (!publicId) {
+    console.warn('Could not extract publicId from URL:', cloudinaryUrl);
+    return;
+  }
+
+  try {
+    await deleteImage(publicId);
+    console.log(`✅ Deleted image: ${publicId}`);
+  } catch (error) {
+    console.error('Failed to delete image:', publicId, error);
+    // Don't throw - we don't want to fail the main operation if deletion fails
   }
 }
