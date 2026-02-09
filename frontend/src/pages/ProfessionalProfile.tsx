@@ -17,6 +17,7 @@ import { MissionsTab } from '../components/professional/MissionsTab';
 import { useMessages } from '../hooks/professional/useMessages';
 import { MessagesTab } from '../components/professional/MessagesTab';
 import { DashboardTab } from '../components/professional/DashboardTab';
+import { ProfileTab } from '../components/professional/ProfileTab';
 
 const MISSION_TYPES = [
   { id: 'branding', label: 'Branding' },
@@ -1033,6 +1034,41 @@ export default function ProfessionalProfile() {
           )}
 
           {/* PROFILE TAB */}
+          {activeTab === 'profile' && (
+            <ProfileTab
+              firstName={firstName}
+              lastName={lastName}
+              profilePictureUrl={profilePictureUrl}
+              bannerUrl={bannerUrl}
+              bannerInputRef={bannerInputRef}
+              experienceYears={experienceYears}
+              hourlyRate={hourlyRate}
+              availability={availability}
+              bio={bio}
+              missionTypes={missionTypes}
+              preferredClientTypes={preferredClientTypes}
+              preferredCollabTypes={preferredCollabTypes}
+              minimumBudget={minimumBudget}
+              websiteUrl={websiteUrl}
+              linkedinUrl={linkedinUrl}
+              instagramUrl={instagramUrl}
+              twitterUrl={twitterUrl}
+              youtubeUrl={youtubeUrl}
+              selectedProfessions={selectedProfessions}
+              skills={skills}
+              portfolios={portfolios}
+              isEditMode={isEditMode}
+              setIsEditMode={setIsEditMode}
+              profileCompleteness={profileCompleteness}
+              setActiveTab={setActiveTab}
+              handleBannerFileSelect={handleBannerFileSelect}
+              handleBannerRemove={handleBannerRemove}
+              profileHeaderAnimation={profileHeaderAnimation}
+              personalInfoAnimation={personalInfoAnimation}
+              professionsAnimation={professionsAnimation}
+              skillsAnimation={skillsAnimation}
+            />
+          )}
         </main>
       </div>
     </div>
