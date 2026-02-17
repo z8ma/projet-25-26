@@ -1092,6 +1092,11 @@ export class ProfessionalController {
           averageRating: true,
           totalRatings: true,
           profileCompleteness: true,
+          bio: true,
+          missionTypes: true,
+          hourlyRate: true,
+          availability: true,
+          experienceYears: true,
         },
       });
 
@@ -1388,6 +1393,13 @@ export class ProfessionalController {
             media: p.media,
             likesCount: p._count.likes,
           })),
+          profile: {
+            bio: professional.bio,
+            missionTypes: professional.missionTypes,
+            hourlyRate: professional.hourlyRate,
+            availability: professional.availability,
+            experienceYears: professional.experienceYears,
+          },
         },
       });
     } catch (error: any) {

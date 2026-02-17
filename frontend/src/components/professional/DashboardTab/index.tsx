@@ -492,8 +492,112 @@ export function DashboardTab({
           )}
         </div>
 
-        {/* Column 3: Popular projects, Reviews and Collaborators */}
+        {/* Column 3: Onboarding (if incomplete), Popular projects, Reviews and Collaborators */}
         <div className="space-y-6">
+          {/* Onboarding Checklist - shown if profile < 100% */}
+          {profileCompleteness < 100 && (
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl border border-purple-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-gray-900">Complétez votre profil</h2>
+                <div className="flex items-center gap-2">
+                  <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span className="text-2xl font-bold text-purple-600">{profileCompleteness}%</span>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">Un profil complet améliore votre visibilité et vos chances de matching</p>
+
+              <div className="space-y-2">
+                {/* Bio check */}
+                {(!dashboardStats?.profile?.bio || dashboardStats?.profile?.bio?.length < 50) && (
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    className="w-full flex items-center gap-3 p-3 bg-white rounded-xl hover:shadow-md transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
+                      <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-gray-900">Ajoutez une bio</p>
+                      <p className="text-xs text-gray-500">Décrivez votre expertise en quelques lignes</p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
+
+                {/* Mission types check */}
+                {(!dashboardStats?.profile?.missionTypes || dashboardStats?.profile?.missionTypes?.length === 0) && (
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    className="w-full flex items-center gap-3 p-3 bg-white rounded-xl hover:shadow-md transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-200 transition-colors">
+                      <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-gray-900">Définissez vos types de missions</p>
+                      <p className="text-xs text-gray-500">Branding, UI/UX, Web design...</p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
+
+                {/* Hourly rate check */}
+                {!dashboardStats?.profile?.hourlyRate && (
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    className="w-full flex items-center gap-3 p-3 bg-white rounded-xl hover:shadow-md transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-200 transition-colors">
+                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-gray-900">Indiquez votre tarif horaire</p>
+                      <p className="text-xs text-gray-500">Aide les créateurs à budgéter</p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
+
+                {/* Portfolio check */}
+                {dashboardStats?.stats?.projectsCompleted === 0 && (
+                  <button
+                    onClick={() => setActiveTab('portfolio')}
+                    className="w-full flex items-center gap-3 p-3 bg-white rounded-xl hover:shadow-md transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0 group-hover:bg-pink-200 transition-colors">
+                      <svg className="w-4 h-4 text-pink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-gray-900">Ajoutez des projets</p>
+                      <p className="text-xs text-gray-500">Montrez votre portfolio aux créateurs</p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Top liked portfolio projects */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
