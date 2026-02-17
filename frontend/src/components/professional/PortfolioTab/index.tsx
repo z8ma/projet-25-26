@@ -104,7 +104,7 @@ export function PortfolioTab({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {/* Sort to show featured first */}
-          {[...portfolios].sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0)).map((portfolio, index) => (
+          {[...portfolios].sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0)).map((portfolio) => (
             <div
               key={portfolio.id}
               onClick={() => setViewingPortfolio(portfolio)}

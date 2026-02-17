@@ -624,7 +624,7 @@ export function ExploreTab() {
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {professionals
-                  .filter((p) => p.id !== user?.professionalId)
+                  .filter((p) => p.id !== user?.professional?.id)
                   .map((professional) => (
                   <div
                     key={professional.id}
@@ -635,10 +635,7 @@ export function ExploreTab() {
                     <div className="h-32 bg-gray-100 grid grid-cols-2 gap-0.5">
                       {professional.portfolios.length > 0 ? (
                         professional.portfolios.slice(0, 4).map((portfolio) => {
-                          const coverUrl = portfolio.imageUrl
-                            || portfolio.media?.find((m: any) => m.type === 'IMAGE')?.url
-                            || portfolio.media?.[0]?.thumbnailUrl
-                            || portfolio.media?.[0]?.url;
+                          const coverUrl = portfolio.imageUrl;
                           return (
                             <div key={portfolio.id} className="bg-gray-200 overflow-hidden">
                               {coverUrl ? (
