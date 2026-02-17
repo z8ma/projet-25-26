@@ -6,17 +6,22 @@ interface UploadResult {
   width?: number;
   height?: number;
   format: string;
-  resourceType: 'image' | 'raw';
+  resourceType: 'image' | 'raw' | 'video';
   fileSize?: number;
   pages?: number; // For PDFs
+  duration?: number; // For videos (in seconds)
+  thumbnailUrl?: string; // For videos and PDFs
 }
 
 /**
  * Detect file type from mimetype
  */
-function getResourceType(mimetype: string): 'image' | 'raw' {
+function getResourceType(mimetype: string): 'image' | 'raw' | 'video' {
   if (mimetype.startsWith('image/')) {
     return 'image';
+  }
+  if (mimetype.startsWith('video/')) {
+    return 'video';
   }
   return 'raw'; // PDFs and other documents
 }
@@ -29,7 +34,7 @@ function getDataUriPrefix(mimetype: string): string {
 }
 
 /**
- * Upload file (image or PDF) to Cloudinary
+ * Upload file (image, PDF, or video) to Cloudinary
  */
 export async function uploadFile(
   fileData: Buffer,
@@ -46,7 +51,7 @@ export async function uploadFile(
       resource_type: resourceType,
     };
 
-    // Add transformations only for images
+    // Add transformations for images
     if (resourceType === 'image') {
       uploadOptions.transformation = [
         { width: 1920, height: 1920, crop: 'limit' },
@@ -55,7 +60,37 @@ export async function uploadFile(
       ];
     }
 
+    // Add transformations and validation for videos
+    if (resourceType === 'video') {
+      uploadOptions.transformation = [
+        { width: 1920, height: 1080, crop: 'limit' },
+        { quality: 'auto:good' },
+      ];
+      // Cloudinary will generate thumbnail automatically
+      uploadOptions.eager = [
+        { format: 'jpg', transformation: [{ width: 640, height: 360, crop: 'fill' }] }
+      ];
+      uploadOptions.eager_async = false; // Wait for thumbnail generation
+    }
+
     const result = await cloudinary.uploader.upload(base64Data, uploadOptions);
+
+    // Validate video duration (max 30 seconds)
+    if (resourceType === 'video' && result.duration) {
+      if (result.duration > 30) {
+        // Delete the uploaded video if it exceeds duration limit
+        await cloudinary.uploader.destroy(result.public_id, { resource_type: 'video' });
+        throw new Error('Video duration exceeds maximum allowed (30 seconds)');
+      }
+    }
+
+    // Generate thumbnail URL for videos
+    let thumbnailUrl: string | undefined;
+    if (resourceType === 'video') {
+      // Cloudinary video thumbnail URL format
+      thumbnailUrl = result.eager?.[0]?.secure_url ||
+                     result.secure_url.replace(/\.(mp4|webm|mov)$/, '.jpg');
+    }
 
     return {
       url: result.secure_url,
@@ -66,9 +101,14 @@ export async function uploadFile(
       resourceType,
       fileSize: result.bytes,
       pages: result.pages, // Available for PDFs
+      duration: result.duration, // Available for videos (in seconds)
+      thumbnailUrl, // For videos
     };
   } catch (error) {
     console.error('Cloudinary upload error:', error);
+    if (error instanceof Error) {
+      throw error; // Re-throw our custom errors
+    }
     throw new Error('Failed to upload file to Cloudinary');
   }
 }
@@ -125,15 +165,26 @@ export function extractPublicIdFromUrl(cloudinaryUrl: string | null | undefined)
 }
 
 /**
- * Delete image from Cloudinary
+ * Delete media from Cloudinary
  */
-export async function deleteImage(publicId: string): Promise<void> {
+export async function deleteMedia(
+  publicId: string,
+  resourceType: 'image' | 'video' | 'raw' = 'image'
+): Promise<void> {
   try {
-    await cloudinary.uploader.destroy(publicId);
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
   } catch (error) {
     console.error('Cloudinary delete error:', error);
-    throw new Error('Failed to delete image from Cloudinary');
+    throw new Error(`Failed to delete ${resourceType} from Cloudinary`);
   }
+}
+
+/**
+ * Delete image from Cloudinary
+ * @deprecated Use deleteMedia instead
+ */
+export async function deleteImage(publicId: string): Promise<void> {
+  return deleteMedia(publicId, 'image');
 }
 
 /**

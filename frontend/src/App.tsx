@@ -17,6 +17,7 @@ import Settings from './pages/Settings';
 import ProfessionalSettings from './pages/ProfessionalSettings';
 import SavedProfessionals from './pages/SavedProfessionals';
 import ExploreProfessionals from './pages/ExploreProfessionals';
+import PublicProfessionalProfile from './pages/PublicProfessionalProfile';
 
 // Settings Router Component
 function SettingsRouter() {
@@ -59,6 +60,7 @@ function App() {
         <Route path="/settings" element={<SettingsRouter />} />
         <Route path="/favorites" element={<SavedProfessionals />} />
         <Route path="/explore" element={<ExploreProfessionals />} />
+        <Route path="/pro/:id" element={<PublicProfessionalProfile />} />
         </Routes>
       </BrowserRouter>
     </SidebarProvider>

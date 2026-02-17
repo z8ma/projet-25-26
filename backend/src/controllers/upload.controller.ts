@@ -61,6 +61,27 @@ const brainstormingFileFilter = (req: Request, file: Express.Multer.File, cb: mu
   }
 };
 
+// File filter for portfolio media - images, videos, and PDFs
+const portfolioMediaFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+    'application/pdf',
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Type de fichier non autorisé. Utilisez JPG, PNG, GIF, WebP, MP4, WebM ou PDF.'));
+  }
+};
+
 // Configure multer
 export const upload = multer({
   storage,
@@ -76,6 +97,15 @@ export const uploadMemory = multer({
   fileFilter: brainstormingFileFilter,
   limits: {
     fileSize: 15 * 1024 * 1024, // 15MB max (images ~10MB, PDFs ~15MB)
+  },
+});
+
+// Configure multer for portfolio media (images, videos, PDFs) - Cloudinary
+export const uploadPortfolioMedia = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: portfolioMediaFileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max (videos up to 30sec)
   },
 });
 

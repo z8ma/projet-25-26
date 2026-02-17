@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { api } from '../services/api';
+import { api, professionalApi } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
@@ -26,8 +26,52 @@ export default function ProfessionalSettings() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Notification preferences state
+  const [notifPrefs, setNotifPrefs] = useState({
+    notifyNewMatch: true,
+    notifyMessage: true,
+    notifyProjectUpdate: true,
+    notifyEmail: true,
+  });
+  const [notifLoading, setNotifLoading] = useState(true);
+
+  // Load notification preferences
+  useEffect(() => {
+    const loadPrefs = async () => {
+      try {
+        const response = await professionalApi.getProfile();
+        if (response.success && response.data) {
+          setNotifPrefs({
+            notifyNewMatch: response.data.notifyNewMatch ?? true,
+            notifyMessage: response.data.notifyMessage ?? true,
+            notifyProjectUpdate: response.data.notifyProjectUpdate ?? true,
+            notifyEmail: response.data.notifyEmail ?? true,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading notification preferences:', error);
+      } finally {
+        setNotifLoading(false);
+      }
+    };
+    loadPrefs();
+  }, []);
+
+  const toggleNotifPref = async (key: keyof typeof notifPrefs) => {
+    const newValue = !notifPrefs[key];
+    setNotifPrefs(prev => ({ ...prev, [key]: newValue }));
+    try {
+      await professionalApi.updateProfile({ [key]: newValue });
+    } catch (error) {
+      // Revert on error
+      setNotifPrefs(prev => ({ ...prev, [key]: !newValue }));
+      console.error('Error updating notification preference:', error);
+    }
+  };
+
   // Scroll animations
   const headerAnimation = useScrollAnimation();
+  const notifAnimation = useScrollAnimation();
   const passwordAnimation = useScrollAnimation();
   const deleteAnimation = useScrollAnimation();
 
@@ -147,10 +191,62 @@ export default function ProfessionalSettings() {
           </div>
         </div>
 
+        {/* Notification Preferences */}
+        <div
+          ref={notifAnimation.ref}
+          className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 transition-all duration-700 delay-100 ${
+            notifAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+        >
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            Préférences de notification
+          </h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Choisissez les notifications que vous souhaitez recevoir
+          </p>
+
+          {notifLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <div className="w-6 h-6 border-2 border-purple-200 border-t-purple-500 rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {[
+                { key: 'notifyNewMatch' as const, label: 'Nouveaux matchs', desc: 'Quand un créateur vous propose un projet' },
+                { key: 'notifyMessage' as const, label: 'Messages reçus', desc: 'Quand vous recevez un nouveau message' },
+                { key: 'notifyProjectUpdate' as const, label: 'Mises à jour de projet', desc: 'Changements de statut sur vos projets' },
+                { key: 'notifyEmail' as const, label: 'Notifications par email', desc: 'Recevoir aussi les notifications par email' },
+              ].map((pref) => (
+                <div key={pref.key} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{pref.label}</p>
+                    <p className="text-xs text-gray-500">{pref.desc}</p>
+                  </div>
+                  <button
+                    onClick={() => toggleNotifPref(pref.key)}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                      notifPrefs[pref.key] ? 'bg-purple-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                        notifPrefs[pref.key] ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Change Password */}
         <div
           ref={passwordAnimation.ref}
-          className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 transition-all duration-700 delay-100 ${
+          className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 transition-all duration-700 delay-200 ${
             passwordAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
           }`}
         >
@@ -241,7 +337,7 @@ export default function ProfessionalSettings() {
         {/* Danger Zone */}
         <div
           ref={deleteAnimation.ref}
-          className={`bg-white rounded-2xl p-6 shadow-sm border border-red-200 mb-6 transition-all duration-700 delay-200 ${
+          className={`bg-white rounded-2xl p-6 shadow-sm border border-red-200 mb-6 transition-all duration-700 delay-300 ${
             deleteAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
           }`}
         >

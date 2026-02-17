@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ExternalLinkWarningProps {
   url: string;
@@ -51,14 +52,14 @@ export default function ExternalLinkWarning({
         {children}
       </a>
 
-      {/* Warning Modal */}
-      {showModal && (
+      {/* Warning Modal - rendered via portal to avoid transform parent issues */}
+      {showModal && createPortal(
         <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
           onClick={handleCancel}
         >
           <div
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl"
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Icon */}
@@ -138,7 +139,8 @@ export default function ExternalLinkWarning({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

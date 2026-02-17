@@ -20,9 +20,10 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  creator      Creator?
-  professional Professional?
-  subscriptions Subscription[]
+  creator           Creator?
+  professional      Professional?
+  subscriptions     Subscription[]
+  portfolioComments PortfolioComment[]
 
   @@map("users")
 }
@@ -164,6 +165,10 @@ model Professional {
   // 4. Ce que le pro NE VEUT PAS faire (exclusions)
   exclusions              Json?     @map("exclusions")
 
+  // Localisation
+  city                    String?
+  country                 String?  @default("France")
+
   // Liens sociaux et web
   websiteUrl              String?  @map("website_url")
   linkedinUrl             String?  @map("linkedin_url")
@@ -192,11 +197,16 @@ model Professional {
   savedBy                   SavedProfessional[]
   calendarEvents            CalendarEvent[]
   profileViews              ProfileView[]
+  followers                 ProfessionalFollow[]       @relation("followed")
+  following                 ProfessionalFollow[]       @relation("follower")
+  portfolioLikes            PortfolioLike[]
 
   @@index([isPremium])
   @@index([availability])
   @@index([averageRating])
   @@index([profileCompleteness])
+  @@index([projectsCompleted])
+  @@index([createdAt])
   @@map("professionals")
 }
 
@@ -274,12 +284,17 @@ model Portfolio {
   imageEmbedding String?  @map("image_embedding")  // Vecteur pour matching visuel
 
   // Relations
-  professional Professional   @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  professional Professional     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   tags         PortfolioTag[]
+  media        PortfolioMedia[] // Support multi-médias (images, vidéos, PDFs)
+  likes        PortfolioLike[]
+  comments     PortfolioComment[]
 
   @@index([professionalId])
   @@index([projectType])
   @@index([clientType])
+  @@index([createdAt])
+  @@index([isFeatured])
   @@map("portfolios")
 }
 
@@ -297,6 +312,41 @@ model PortfolioTag {
   @@index([portfolioId])
   @@index([tag])
   @@map("portfolio_tags")
+}
+
+// Portfolio Media (images, videos, PDFs)
+model PortfolioMedia {
+  id          String            @id @default(uuid())
+  portfolioId String            @map("portfolio_id")
+  type        PortfolioMediaType
+  url         String            // Cloudinary URL
+  thumbnailUrl String?          @map("thumbnail_url") // Pour les vidéos et PDFs
+  publicId    String            @map("public_id") // Cloudinary public_id pour suppression
+  order       Int               @default(0) // Ordre d'affichage
+
+  // Metadata pour vidéos
+  duration    Int?              // Durée en secondes (pour vidéos)
+  width       Int?              // Largeur (pour images/vidéos)
+  height      Int?              // Hauteur (pour images/vidéos)
+  fileSize    Int?              @map("file_size") // Taille en bytes
+
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  // Relations
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([type])
+  @@index([order])
+  @@map("portfolio_media")
+}
+
+enum PortfolioMediaType {
+  IMAGE
+  VIDEO
+  PDF
+
+  @@map("portfolio_media_type")
 }
 
 // AI Conversations
@@ -450,6 +500,8 @@ enum NotificationType {
   PROJECT_UPDATE
   MESSAGE_RECEIVED
   RATING_RECEIVED
+  FOLLOW_RECEIVED
+  PORTFOLIO_LIKED
 
   @@map("notification_type")
 }
@@ -561,4 +613,58 @@ enum ProfileViewSource {
   LINK_SHARING       // Partage de lien direct
 
   @@map("profile_view_source")
+}
+
+// Portfolio Likes (pros can like other pros' portfolio items)
+model PortfolioLike {
+  id             String   @id @default(uuid())
+  portfolioId    String   @map("portfolio_id")
+  professionalId String   @map("professional_id") // The pro who liked
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  portfolio    Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, professionalId])
+  @@index([portfolioId])
+  @@index([professionalId])
+  @@index([createdAt])
+  @@map("portfolio_likes")
+}
+
+// Portfolio Comments
+model PortfolioComment {
+  id        String   @id @default(uuid())
+  portfolioId String @map("portfolio_id")
+  userId    String   @map("user_id") // Can be creator or professional
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("portfolio_comments")
+}
+
+// Professional Follows (pros can follow other pros)
+model ProfessionalFollow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")  // The pro who follows
+  followedId  String   @map("followed_id")  // The pro being followed
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  follower Professional @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followed Professional @relation("followed", fields: [followedId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followedId])
+  @@index([followerId])
+  @@index([followedId])
+  @@map("professional_follows")
 }

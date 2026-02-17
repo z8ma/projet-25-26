@@ -28,20 +28,3 @@ creative-match/
 ├── shared/            # Types TypeScript partagés
 └── docs/              # Documentation complète
 ```
-
-## 📚 Documentation
-
-- [Concept Détaillé](docs/01-concept.md)
-- [Architecture Base de Données](docs/02-database.md)
-- [Stack Technique](docs/03-tech-stack.md)
-- [Fonctionnalités](docs/04-features.md)
-- [Modèle d'Abonnement](docs/05-subscription-model.md)
-- [IA & Matching](docs/06-ai-matching.md)
-
-## 🚀 Démarrage Rapide
-
-_(À compléter après setup initial)_
-
-## 📝 License
-
-_(À définir)_

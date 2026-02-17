@@ -3,13 +3,13 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useSidebar } from '../contexts/SidebarContext';
 import { professionalApi, uploadApi, matchingApi, calendarApi } from '../services/api';
-import ExternalLinkWarning from '../components/ExternalLinkWarning';
 import ProfilePictureUpload from '../components/ProfilePictureUpload';
 import NotificationDropdown from '../components/NotificationDropdown';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 import { usePortfolio } from '../hooks/professional/usePortfolio';
 import { PortfolioTab } from '../components/professional/PortfolioTab';
+import { PortfolioViewModal } from '../components/professional/PortfolioTab/PortfolioViewModal';
 import { useCalendar } from '../hooks/professional/useCalendar';
 import { CalendarTab } from '../components/professional/CalendarTab';
 import { useMissions } from '../hooks/professional/useMissions';
@@ -18,6 +18,7 @@ import { useMessages } from '../hooks/professional/useMessages';
 import { MessagesTab } from '../components/professional/MessagesTab';
 import { DashboardTab } from '../components/professional/DashboardTab';
 import { ProfileView } from '../components/professional/ProfileTab/ProfileView';
+import { ExploreTab } from '../components/professional/ExploreTab';
 
 const MISSION_TYPES = [
   { id: 'branding', label: 'Branding' },
@@ -160,6 +161,7 @@ const MENU_ITEMS = [
   { id: 'messages', label: 'Messages', icon: 'chat' },
   { id: 'portfolio', label: 'Portfolio', icon: 'image' },
   { id: 'profile', label: 'Mon Profil', icon: 'user' },
+  { id: 'explore', label: 'Explorer', icon: 'search' },
 ];
 
 const MenuIcon = ({ icon, className = "w-5 h-5" }: { icon: string; className?: string }) => {
@@ -172,6 +174,7 @@ const MenuIcon = ({ icon, className = "w-5 h-5" }: { icon: string; className?: s
     code: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>,
     image: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
     chat: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>,
+    search: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
   };
   return icons[icon] || null;
 };
@@ -211,6 +214,10 @@ export default function ProfessionalProfile() {
   const [exclusions, setExclusions] = useState<string[]>([]);
   const [newExclusion, setNewExclusion] = useState('');
   const [profileCompleteness, setProfileCompleteness] = useState(0);
+
+  // Location
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('France');
 
   // Social links
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -258,6 +265,7 @@ export default function ProfessionalProfile() {
   const personalInfoAnimation = useScrollAnimation([activeTab]);
   const professionsAnimation = useScrollAnimation([activeTab]);
   const skillsAnimation = useScrollAnimation([activeTab]);
+  const softwareAnimation = useScrollAnimation([activeTab]);
   const preferencesAnimation = useScrollAnimation([activeTab]);
   const exclusionsAnimation = useScrollAnimation([activeTab]);
   const socialLinksAnimation = useScrollAnimation([activeTab]);
@@ -398,6 +406,10 @@ export default function ProfessionalProfile() {
         setPreferredCollabTypes(data.preferredCollabTypes || []);
         setMinimumBudget(data.minimumBudget?.toString() || '');
         setExclusions(data.exclusions || []);
+
+        // Load location
+        setCity(data.city || '');
+        setCountry(data.country || 'France');
 
         // Load social links
         setWebsiteUrl(data.websiteUrl || '');
@@ -629,12 +641,15 @@ export default function ProfessionalProfile() {
         preferredClientTypes, preferredCollabTypes,
         minimumBudget: minimumBudget ? parseFloat(minimumBudget) : undefined,
         exclusions,
-        // Social links (TODO: Add to API type definition)
-        // websiteUrl: websiteUrl || undefined,
-        // linkedinUrl: linkedinUrl || undefined,
-        // instagramUrl: instagramUrl || undefined,
-        // twitterUrl: twitterUrl || undefined,
-        // youtubeUrl: youtubeUrl || undefined,
+        // Location
+        city: city || undefined,
+        country: country || undefined,
+        // Social links
+        websiteUrl: websiteUrl || undefined,
+        linkedinUrl: linkedinUrl || undefined,
+        instagramUrl: instagramUrl || undefined,
+        twitterUrl: twitterUrl || undefined,
+        youtubeUrl: youtubeUrl || undefined,
         // Notification preferences
         notifyNewMatch,
         notifyMessage,
@@ -823,23 +838,17 @@ export default function ProfessionalProfile() {
                     <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`}>
                       <MenuIcon icon={item.icon} />
                     </span>
-                    <span className={`whitespace-nowrap transition-all duration-300 overflow-hidden ${isCollapsed ? 'lg:hidden' : 'w-auto opacity-100'
-                      }`}>
+                    <span className={`whitespace-nowrap transition-all duration-300 overflow-hidden ${isCollapsed ? 'lg:hidden' : 'w-auto opacity-100'}`}>
                       {item.label}
                     </span>
                     {item.id === 'messages' && unreadCount > 0 && !isCollapsed && (
-                      <span className={`ml-auto px-2 py-0.5 text-xs rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
-                        }`}>
+                      <span className={`ml-auto px-2 py-0.5 text-xs rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'}`}>
                         {unreadCount}
                       </span>
                     )}
-                    {/* Tooltip for collapsed mode */}
                     {isCollapsed && (
                       <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-[60] hidden lg:block shadow-lg">
                         {item.label}
-                        {item.id === 'messages' && unreadCount > 0 && (
-                          <span className="ml-2 px-1.5 py-0.5 bg-purple-500 rounded-full text-xs">{unreadCount}</span>
-                        )}
                       </span>
                     )}
                   </button>
@@ -1056,6 +1065,8 @@ export default function ProfessionalProfile() {
                   preferredCollabTypes={preferredCollabTypes}
                   minimumBudget={minimumBudget}
                   exclusions={exclusions}
+                  city={city}
+                  country={country}
                   websiteUrl={websiteUrl}
                   linkedinUrl={linkedinUrl}
                   instagramUrl={instagramUrl}
@@ -1069,6 +1080,7 @@ export default function ProfessionalProfile() {
                   personalInfoAnimation={personalInfoAnimation}
                   professionsAnimation={professionsAnimation}
                   skillsAnimation={skillsAnimation}
+                  softwareAnimation={softwareAnimation}
                   setIsEditMode={setIsEditMode}
                   setActiveTab={setActiveTab}
                   profileCompleteness={profileCompleteness}
@@ -1160,6 +1172,18 @@ export default function ProfessionalProfile() {
                                 <option value="Partiellement disponible">Partiellement</option>
                                 <option value="Non disponible">Indisponible</option>
                               </select>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-600 mb-1.5">Ville</label>
+                              <input type="text" value={city} onChange={(e) => setCity(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="Paris" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-600 mb-1.5">Pays</label>
+                              <input type="text" value={country} onChange={(e) => setCountry(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="France" />
                             </div>
                           </div>
                           <div>
@@ -1766,6 +1790,13 @@ export default function ProfessionalProfile() {
               handleUpdatePortfolio={portfolio.handleUpdatePortfolio}
               handleRemovePortfolio={portfolio.handleRemovePortfolio}
               portfolioGridAnimation={portfolioGridAnimation}
+              mediaFiles={portfolio.mediaFiles}
+              mediaInputRef={portfolio.mediaInputRef}
+              handleMediaInputChange={portfolio.handleMediaInputChange}
+              handleMediaDrop={portfolio.handleMediaDrop}
+              removeMediaFile={portfolio.removeMediaFile}
+              deleteExistingMedia={portfolio.deleteExistingMedia}
+              reorderMediaFiles={portfolio.reorderMediaFiles}
             />
           )}
 
@@ -1786,6 +1817,11 @@ export default function ProfessionalProfile() {
               messagesAnimation={messagesAnimation}
               userId={user?.id}
             />
+          )}
+
+          {/* EXPLORE TAB */}
+          {activeTab === 'explore' && (
+            <ExploreTab />
           )}
         </main>
       </div>
@@ -1956,114 +1992,17 @@ export default function ProfessionalProfile() {
         </div>
       )}
 
-      {/* Portfolio Lightbox Modal */}
+      {/* Portfolio View Modal (Behance-style) */}
       {lightboxPortfolio && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-fadeIn"
-          onClick={() => setLightboxPortfolio(null)}
-        >
-          <button
-            onClick={() => setLightboxPortfolio(null)}
-            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors p-2 hover:bg-white/10 rounded-full"
-          >
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-
-          <div
-            className="max-w-6xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl animate-scaleIn"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-              {/* Image */}
-              <div className="relative bg-gray-900 flex items-center justify-center min-h-[400px] lg:min-h-[600px]">
-                {lightboxPortfolio.imageUrl ? (
-                  <img
-                    src={lightboxPortfolio.imageUrl}
-                    alt={lightboxPortfolio.title}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-12">
-                    <svg className="w-24 h-24 text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-gray-500">Aucune image</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Details */}
-              <div className="p-8 lg:p-10 overflow-y-auto max-h-[600px]">
-                <div className="flex items-start justify-between mb-6">
-                  <div>
-                    {lightboxPortfolio.isFeatured && (
-                      <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-sm font-medium rounded-full mb-3">
-                        ⭐ Projet mis en avant
-                      </span>
-                    )}
-                    <h2 className="text-3xl font-bold text-gray-900">{lightboxPortfolio.title}</h2>
-                  </div>
-                </div>
-
-                {lightboxPortfolio.description && (
-                  <div className="mb-6">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Description</h3>
-                    <p className="text-gray-600 leading-relaxed whitespace-pre-line">{lightboxPortfolio.description}</p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  {lightboxPortfolio.projectType && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Type</h3>
-                      <span className="inline-block px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-medium">
-                        {lightboxPortfolio.projectType}
-                      </span>
-                    </div>
-                  )}
-                  {lightboxPortfolio.projectYear && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Année</h3>
-                      <span className="inline-block px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
-                        {lightboxPortfolio.projectYear}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {lightboxPortfolio.clientType && (
-                  <div className="mb-6">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Client</h3>
-                    <p className="text-gray-600">{lightboxPortfolio.clientType}</p>
-                  </div>
-                )}
-
-                {lightboxPortfolio.roleDescription && (
-                  <div className="mb-6">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Mon rôle</h3>
-                    <p className="text-gray-600 leading-relaxed">{lightboxPortfolio.roleDescription}</p>
-                  </div>
-                )}
-
-                {lightboxPortfolio.projectUrl && (
-                  <div className="mt-8 pt-6 border-t border-gray-200">
-                    <ExternalLinkWarning
-                      url={lightboxPortfolio.projectUrl}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      Voir le projet complet
-                    </ExternalLinkWarning>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <PortfolioViewModal
+          portfolio={lightboxPortfolio}
+          onClose={() => setLightboxPortfolio(null)}
+          onEdit={(p) => {
+            setLightboxPortfolio(null);
+            setActiveTab('portfolio');
+            portfolio.startEditPortfolio(p);
+          }}
+        />
       )}
     </div>
   );

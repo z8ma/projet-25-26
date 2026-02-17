@@ -12,6 +12,7 @@ interface Professional {
   id: string;
   firstName: string;
   lastName: string;
+  profilePictureUrl: string | null;
   bio: string | null;
   experienceYears: number | null;
   hourlyRate: string | null;
@@ -40,6 +41,12 @@ interface Professional {
     projectUrl: string | null;
     projectType: string | null;
     isFeatured: boolean;
+    media?: Array<{
+      id: string;
+      type: string;
+      url: string;
+      thumbnailUrl: string | null;
+    }>;
   }>;
 }
 
@@ -153,15 +160,8 @@ export default function ExploreProfessionals() {
       localStorage.setItem('viewedProfiles', JSON.stringify([...newViewed]));
     }
 
-    setDetailLoading(true);
-    try {
-      const response = await professionalApi.getProfessionalById(professional.id);
-      setSelectedProfessional(response.data);
-    } catch (error) {
-      console.error('Error loading professional details:', error);
-    } finally {
-      setDetailLoading(false);
-    }
+    // Navigate to public profile page
+    navigate(`/pro/${professional.id}`);
   };
 
   const getPrimaryProfession = (professional: Professional) => {
@@ -170,19 +170,14 @@ export default function ExploreProfessionals() {
   };
 
   const formatAvailability = (availability: string | null) => {
-    const labels: Record<string, string> = {
-      AVAILABLE: 'Disponible',
-      PARTIALLY_AVAILABLE: 'Partiellement dispo',
-      NOT_AVAILABLE: 'Non disponible',
-    };
-    return labels[availability || ''] || 'Non spécifié';
+    return availability || 'Non spécifié';
   };
 
   const getAvailabilityColor = (availability: string | null) => {
     switch (availability) {
-      case 'AVAILABLE':
+      case 'Disponible':
         return 'bg-green-100 text-green-700';
-      case 'PARTIALLY_AVAILABLE':
+      case 'Partiellement disponible':
         return 'bg-yellow-100 text-yellow-700';
       default:
         return 'bg-gray-100 text-gray-600';
@@ -289,9 +284,9 @@ export default function ExploreProfessionals() {
                 onChange={setSelectedAvailability}
                 placeholder="Disponibilité"
                 options={[
-                  { value: 'AVAILABLE', label: 'Disponible' },
-                  { value: 'PARTIALLY_AVAILABLE', label: 'Partiellement' },
-                  { value: 'NOT_AVAILABLE', label: 'Indisponible' },
+                  { value: 'Disponible', label: 'Disponible' },
+                  { value: 'Partiellement disponible', label: 'Partiellement' },
+                  { value: 'Non disponible', label: 'Indisponible' },
                 ]}
                 icon={
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -367,25 +362,31 @@ export default function ExploreProfessionals() {
                   onClick={() => !isBlurred && handleViewProfile(professional, index)}
                 >
                   {/* Portfolio Preview */}
-                  <div className={`h-40 bg-gray-100 grid grid-cols-2 gap-0.5 ${isBlurred ? 'blur-md' : ''}`}>
+                  <div className={`h-32 bg-gray-100 grid grid-cols-2 gap-0.5 ${isBlurred ? 'blur-md' : ''}`}>
                     {professional.portfolios.length > 0 ? (
-                      professional.portfolios.slice(0, 4).map((portfolio) => (
-                        <div key={portfolio.id} className="bg-gray-200 overflow-hidden">
-                          {portfolio.imageUrl ? (
-                            <img
-                              src={portfolio.imageUrl}
-                              alt={portfolio.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      ))
+                      professional.portfolios.slice(0, 4).map((portfolio: any) => {
+                        const coverUrl = portfolio.imageUrl
+                          || portfolio.media?.find((m: any) => m.type === 'IMAGE')?.url
+                          || portfolio.media?.[0]?.thumbnailUrl
+                          || portfolio.media?.[0]?.url;
+                        return (
+                          <div key={portfolio.id} className="bg-gray-200 overflow-hidden">
+                            {coverUrl ? (
+                              <img
+                                src={coverUrl}
+                                alt={portfolio.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="col-span-2 flex items-center justify-center text-gray-400">
                         <span className="text-sm">Pas de portfolio</span>
@@ -395,7 +396,7 @@ export default function ExploreProfessionals() {
 
                   {/* Premium Badge */}
                   {professional.isPremium && (
-                    <div className="absolute top-2 right-2 px-2 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                    <div className="absolute top-2 right-2 px-2 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded-full flex items-center gap-1 z-20">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
@@ -403,32 +404,40 @@ export default function ExploreProfessionals() {
                     </div>
                   )}
 
-                  {/* Content */}
-                  <div className={`p-4 ${isBlurred ? 'blur-sm' : ''}`}>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {professional.firstName?.[0]}{professional.lastName?.[0]}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {professional.firstName} {professional.lastName}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {getPrimaryProfession(professional)}
-                          </p>
-                        </div>
-                      </div>
-                      {!isBlurred && (
-                        <FavoriteButton professionalId={professional.id} size="sm" />
-                      )}
+                  {/* Favorite Button */}
+                  {!isBlurred && (
+                    <div className="absolute top-2 left-2 z-20" onClick={(e) => e.stopPropagation()}>
+                      <FavoriteButton professionalId={professional.id} size="sm" />
                     </div>
+                  )}
+
+                  {/* Centered Avatar */}
+                  <div className={`flex justify-center -mt-8 relative z-10 ${isBlurred ? 'blur-sm' : ''}`}>
+                    {professional.profilePictureUrl ? (
+                      <img
+                        src={professional.profilePictureUrl}
+                        alt={`${professional.firstName} ${professional.lastName}`}
+                        className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-md"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg border-4 border-white shadow-md">
+                        {professional.firstName?.[0]}{professional.lastName?.[0]}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className={`px-4 pb-4 pt-2 text-center ${isBlurred ? 'blur-sm' : ''}`}>
+                    <h3 className="font-semibold text-gray-900">
+                      {professional.firstName} {professional.lastName}
+                    </h3>
+                    <p className="text-sm text-gray-500">{getPrimaryProfession(professional)}</p>
 
                     {/* Stats */}
-                    <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
+                    <div className="flex items-center justify-center gap-3 text-sm text-gray-500 mt-2">
                       {professional.experienceYears && (
                         <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           {professional.experienceYears} ans
@@ -436,7 +445,7 @@ export default function ExploreProfessionals() {
                       )}
                       {professional.averageRating && (
                         <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-3.5 h-3.5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
                           {parseFloat(professional.averageRating).toFixed(1)}
@@ -449,7 +458,7 @@ export default function ExploreProfessionals() {
 
                     {/* Skills */}
                     {professional.softwareSkills.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap justify-center gap-1 mt-2">
                         {professional.softwareSkills.slice(0, 3).map((skill) => (
                           <span
                             key={skill.id}
@@ -543,9 +552,13 @@ export default function ExploreProfessionals() {
                   {/* Header */}
                   <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                        {selectedProfessional.firstName?.[0]}{selectedProfessional.lastName?.[0]}
-                      </div>
+                      {selectedProfessional.profilePictureUrl ? (
+                        <img src={selectedProfessional.profilePictureUrl} alt="" className="w-14 h-14 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-14 h-14 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                          {selectedProfessional.firstName?.[0]}{selectedProfessional.lastName?.[0]}
+                        </div>
+                      )}
                       <div>
                         <h2 className="text-xl font-bold text-gray-900">
                           {selectedProfessional.firstName} {selectedProfessional.lastName}
@@ -655,19 +668,25 @@ export default function ExploreProfessionals() {
                                   En avant
                                 </div>
                               )}
-                              {portfolio.imageUrl ? (
-                                <img
-                                  src={portfolio.imageUrl}
-                                  alt={portfolio.title}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                  <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                </div>
-                              )}
+                              {(() => {
+                                const coverUrl = portfolio.imageUrl
+                                  || portfolio.media?.find((m: any) => m.type === 'IMAGE')?.url
+                                  || portfolio.media?.[0]?.thumbnailUrl
+                                  || portfolio.media?.[0]?.url;
+                                return coverUrl ? (
+                                  <img
+                                    src={coverUrl}
+                                    alt={portfolio.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                    <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                );
+                              })()}
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div className="absolute bottom-0 left-0 right-0 p-3">
                                   <p className="text-white font-medium truncate">{portfolio.title}</p>

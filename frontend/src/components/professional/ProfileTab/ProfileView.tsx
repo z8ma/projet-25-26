@@ -126,6 +126,10 @@ interface ProfileViewProps {
   // Exclusions
   exclusions: string[];
 
+  // Location
+  city: string;
+  country: string;
+
   // Social links
   websiteUrl: string;
   linkedinUrl: string;
@@ -149,6 +153,7 @@ interface ProfileViewProps {
   personalInfoAnimation: any;
   professionsAnimation: any;
   skillsAnimation: any;
+  softwareAnimation: any;
 }
 
 export function ProfileView({
@@ -170,6 +175,8 @@ export function ProfileView({
   preferredCollabTypes,
   minimumBudget,
   exclusions,
+  city,
+  country,
   websiteUrl,
   linkedinUrl,
   instagramUrl,
@@ -186,6 +193,7 @@ export function ProfileView({
   personalInfoAnimation,
   professionsAnimation,
   skillsAnimation,
+  softwareAnimation,
 }: ProfileViewProps) {
   return (
     <div className="space-y-6">
@@ -312,129 +320,126 @@ export function ProfileView({
             </button>
           </div>
 
-          {/* Additional Info - Organized with vertical dividers */}
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 divide-y md:divide-y-0 md:divide-x divide-gray-200">
-              {/* Section 1: Budget & Préférences */}
-              <div className="py-3 md:py-0 md:pr-4">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Préférences</h4>
-                <div className="space-y-2">
-                  {minimumBudget && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <svg className="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                      <span className="text-gray-600 text-xs">Min:</span>
-                      <span className="font-semibold text-gray-900 text-sm">{minimumBudget}€</span>
-                    </div>
-                  )}
-                  {preferredClientTypes.length > 0 && (
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Clients</div>
-                      <div className="flex flex-wrap gap-1">
-                        {preferredClientTypes.slice(0, 3).map((type) => (
-                          <span key={type} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                            {CLIENT_TYPES.find(c => c.id === type)?.label || type}
-                          </span>
-                        ))}
-                        {preferredClientTypes.length > 3 && (
-                          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">
-                            +{preferredClientTypes.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {preferredCollabTypes.length > 0 && (
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">Collaboration</div>
-                      <div className="flex flex-wrap gap-1">
-                        {preferredCollabTypes.slice(0, 2).map((type) => {
-                          const collab = COLLAB_TYPES.find(c => c.id === type);
-                          return (
-                            <span key={type} className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
-                              {collab?.label || type}
-                            </span>
-                          );
-                        })}
-                        {preferredCollabTypes.length > 2 && (
-                          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">
-                            +{preferredCollabTypes.length - 2}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+          {/* Compact info bar */}
+          <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {/* Location */}
+            {(city || country) && (
+              <>
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <svg className="w-3.5 h-3.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="font-medium text-gray-700">{[city, country].filter(Boolean).join(', ')}</span>
+                </div>
+                <span className="text-gray-200">|</span>
+              </>
+            )}
+
+            {/* Budget */}
+            {minimumBudget && (
+              <>
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <svg className="w-3.5 h-3.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Min <span className="font-semibold text-gray-900">{minimumBudget}€</span></span>
+                </div>
+                <span className="text-gray-200">|</span>
+              </>
+            )}
+
+            {/* Client types */}
+            {preferredClientTypes.length > 0 && (
+              <>
+                <div className="flex items-center gap-1.5">
+                  {preferredClientTypes.slice(0, 3).map((type) => (
+                    <span key={type} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[11px] font-medium">
+                      {CLIENT_TYPES.find(c => c.id === type)?.label || type}
+                    </span>
+                  ))}
+                  {preferredClientTypes.length > 3 && (
+                    <span className="text-[11px] text-gray-400">+{preferredClientTypes.length - 3}</span>
                   )}
                 </div>
-              </div>
+                <span className="text-gray-200">|</span>
+              </>
+            )}
 
-              {/* Section 2: Types de mission */}
-              <div className="py-3 md:py-0 md:px-4">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Types de mission</h4>
-                {missionTypes.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {missionTypes.slice(0, 4).map((type) => (
-                      <span key={type} className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
-                        {MISSION_TYPES.find(m => m.id === type)?.label || type}
+            {/* Collab types */}
+            {preferredCollabTypes.length > 0 && (
+              <>
+                <div className="flex items-center gap-1.5">
+                  {preferredCollabTypes.slice(0, 2).map((type) => {
+                    const collab = COLLAB_TYPES.find(c => c.id === type);
+                    return (
+                      <span key={type} className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-[11px] font-medium">
+                        {collab?.label || type}
                       </span>
-                    ))}
-                    {missionTypes.length > 4 && (
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">
-                        +{missionTypes.length - 4}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-400 italic">Non renseigné</p>
-                )}
-              </div>
+                    );
+                  })}
+                </div>
+                <span className="text-gray-200">|</span>
+              </>
+            )}
 
-              {/* Section 3: Liens sociaux */}
-              <div className="py-3 md:py-0 md:pl-4">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Liens</h4>
-                <div className="flex flex-wrap gap-2">
-                  {websiteUrl && (
-                    <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-600 transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-                      </svg>
-                    </a>
-                  )}
-                  {linkedinUrl && (
-                    <a href={linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-600 transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-                      </svg>
-                    </a>
-                  )}
-                  {instagramUrl && (
-                    <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-600 transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                      </svg>
-                    </a>
-                  )}
-                  {twitterUrl && (
-                    <a href={twitterUrl} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                      </svg>
-                    </a>
-                  )}
-                  {youtubeUrl && (
-                    <a href={youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-purple-600 transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                      </svg>
-                    </a>
-                  )}
-                  {!websiteUrl && !linkedinUrl && !instagramUrl && !twitterUrl && !youtubeUrl && (
-                    <p className="text-xs text-gray-400 italic">Aucun lien</p>
+            {/* Mission types */}
+            {missionTypes.length > 0 && (
+              <>
+                <div className="flex items-center gap-1.5">
+                  {missionTypes.slice(0, 3).map((type) => (
+                    <span key={type} className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-[11px] font-medium">
+                      {MISSION_TYPES.find(m => m.id === type)?.label || type}
+                    </span>
+                  ))}
+                  {missionTypes.length > 3 && (
+                    <span className="text-[11px] text-gray-400">+{missionTypes.length - 3}</span>
                   )}
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
+
+          {/* Social links - larger icons with brand colors */}
+          {(websiteUrl || linkedinUrl || instagramUrl || twitterUrl || youtubeUrl) && (
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-3">
+              {websiteUrl && (
+                <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 hover:text-gray-800 transition-all hover:scale-110" title="Site web">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                  </svg>
+                </a>
+              )}
+              {linkedinUrl && (
+                <a href={linkedinUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-[#0A66C2]/10 hover:bg-[#0A66C2]/20 flex items-center justify-center text-[#0A66C2] transition-all hover:scale-110" title="LinkedIn">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                  </svg>
+                </a>
+              )}
+              {instagramUrl && (
+                <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-[#E4405F]/10 hover:bg-[#E4405F]/20 flex items-center justify-center text-[#E4405F] transition-all hover:scale-110" title="Instagram">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                  </svg>
+                </a>
+              )}
+              {twitterUrl && (
+                <a href={twitterUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-gray-900/10 hover:bg-gray-900/20 flex items-center justify-center text-gray-900 transition-all hover:scale-110" title="X / Twitter">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </a>
+              )}
+              {youtubeUrl && (
+                <a href={youtubeUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl bg-[#FF0000]/10 hover:bg-[#FF0000]/20 flex items-center justify-center text-[#FF0000] transition-all hover:scale-110" title="YouTube">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                  </svg>
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -498,61 +503,63 @@ export function ProfileView({
         <div className="lg:col-span-2">
           {portfolios.length > 0 ? (
             <div ref={portfolioRef} className="relative bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-              <div className="flex overflow-x-auto gap-6 p-6 scrollbar-hide snap-x snap-mandatory">
+              <div className="flex overflow-x-auto gap-5 p-6 scrollbar-hide snap-x snap-mandatory">
                 {[...portfolios].sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0)).slice(0, 6).map((portfolio) => (
                   <div
                     key={portfolio.id}
-                    className="flex-shrink-0 w-80 snap-start group cursor-pointer"
+                    className="flex-shrink-0 w-72 snap-start group cursor-pointer"
                     onClick={() => setLightboxPortfolio(portfolio)}
                   >
                     <div
-                      className={`bg-white rounded-xl border overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 ${
-                        portfolio.isFeatured ? 'border-purple-200 ring-2 ring-purple-50' : 'border-gray-200'
+                      className={`relative rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 ${
+                        portfolio.isFeatured ? 'ring-2 ring-purple-200' : ''
                       }`}
                     >
-                      <div className="relative overflow-hidden">
-                        {portfolio.isFeatured && (
-                          <div className="absolute top-3 left-3 z-10 px-2.5 py-1 bg-purple-600 text-white text-xs font-medium rounded-full shadow-lg">
-                            ⭐ En avant
-                          </div>
-                        )}
+                      {/* Image */}
+                      <div className="h-52">
                         {portfolio.imageUrl ? (
-                          <div className="h-56 overflow-hidden bg-gray-900 relative">
-                            <img
-                              src={portfolio.imageUrl}
-                              alt={portfolio.title}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            />
-                            {/* Overlay on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
-                              <span className="text-white text-sm font-medium flex items-center gap-2">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                Voir le projet
-                              </span>
-                            </div>
-                          </div>
+                          <img
+                            src={portfolio.imageUrl}
+                            alt={portfolio.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
                         ) : (
-                          <div className="h-56 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                            <svg className="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                            <svg className="w-14 h-14 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                           </div>
                         )}
                       </div>
-                      <div className="p-4">
-                        <h3 className="font-bold text-gray-900 text-base truncate">{portfolio.title}</h3>
-                        {portfolio.description && (
-                          <p className="text-gray-600 text-sm mt-1.5 line-clamp-2 leading-relaxed">{portfolio.description}</p>
-                        )}
-                        <div className="flex flex-wrap gap-1.5 mt-3">
+
+                      {/* Featured badge */}
+                      {portfolio.isFeatured && (
+                        <div className="absolute top-3 left-3 z-10 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-xs font-medium rounded-full flex items-center gap-1.5 shadow-lg">
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          En avant
+                        </div>
+                      )}
+
+                      {/* Tags - visible, hidden on hover */}
+                      {(portfolio.projectType || portfolio.projectYear) && (
+                        <div className="absolute bottom-3 left-3 z-10 flex flex-wrap gap-1.5 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
                           {portfolio.projectType && (
-                            <span className="px-2.5 py-1 text-xs bg-gray-100 text-gray-700 rounded-full font-medium">{portfolio.projectType}</span>
+                            <span className="px-2.5 py-1 text-[11px] bg-black/50 backdrop-blur-sm text-white rounded-full font-medium">{portfolio.projectType}</span>
                           )}
                           {portfolio.projectYear && (
-                            <span className="px-2.5 py-1 text-xs bg-gray-100 text-gray-500 rounded-full">{portfolio.projectYear}</span>
+                            <span className="px-2.5 py-1 text-[11px] bg-black/50 backdrop-blur-sm text-white rounded-full">{portfolio.projectYear}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-5">
+                        <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                          <h3 className="font-bold text-white text-base">{portfolio.title}</h3>
+                          {portfolio.description && (
+                            <p className="text-white/70 text-xs line-clamp-2 mt-1">{portfolio.description}</p>
                           )}
                         </div>
                       </div>
@@ -615,7 +622,12 @@ export function ProfileView({
       </div>
 
       {/* Skills Section */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div
+        ref={softwareAnimation.ref}
+        className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-700 delay-400 ${
+          softwareAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

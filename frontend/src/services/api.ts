@@ -110,6 +110,16 @@ export const professionalApi = {
     return response.data;
   },
 
+  explorePortfolios: async (params?: {
+    projectType?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await api.get('/api/professionals/explore/portfolios', { params });
+    return response.data;
+  },
+
   getProfessionalById: async (id: string) => {
     const response = await api.get(`/api/professionals/details/${id}`);
     return response.data;
@@ -137,6 +147,15 @@ export const professionalApi = {
     preferredCollabTypes?: string[];
     minimumBudget?: number;
     exclusions?: string[];
+    // Localisation
+    city?: string;
+    country?: string;
+    // Social links
+    websiteUrl?: string;
+    linkedinUrl?: string;
+    instagramUrl?: string;
+    twitterUrl?: string;
+    youtubeUrl?: string;
     // Notification preferences
     notifyNewMatch?: boolean;
     notifyMessage?: boolean;
@@ -220,6 +239,29 @@ export const professionalApi = {
     return response.data;
   },
 
+  // Portfolio Media
+  uploadPortfolioMedia: async (portfolioId: string, file: File, onProgress?: (progress: number) => void) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/api/professionals/portfolio/${portfolioId}/media`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onProgress ? (e: any) => {
+        if (e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+      } : undefined,
+    });
+    return response.data;
+  },
+
+  deletePortfolioMedia: async (portfolioId: string, mediaId: string) => {
+    const response = await api.delete(`/api/professionals/portfolio/${portfolioId}/media/${mediaId}`);
+    return response.data;
+  },
+
+  reorderPortfolioMedia: async (portfolioId: string, mediaIds: string[]) => {
+    const response = await api.put(`/api/professionals/portfolio/${portfolioId}/media/reorder`, { mediaIds });
+    return response.data;
+  },
+
   getMessages: async () => {
     const response = await api.get('/api/professionals/messages');
     return response.data;
@@ -242,6 +284,60 @@ export const professionalApi = {
 
   getDashboardStats: async () => {
     const response = await api.get('/api/professionals/dashboard');
+    return response.data;
+  },
+
+  // Follow / Unfollow
+  followProfessional: async (id: string) => {
+    const response = await api.post(`/api/professionals/follow/${id}`);
+    return response.data;
+  },
+
+  unfollowProfessional: async (id: string) => {
+    const response = await api.delete(`/api/professionals/follow/${id}`);
+    return response.data;
+  },
+
+  getFollowStatus: async (id: string) => {
+    const response = await api.get(`/api/professionals/follow/${id}/status`);
+    return response.data;
+  },
+
+  // Direct message to a professional (from creator)
+  sendDirectMessage: async (professionalId: string, message: string) => {
+    const response = await api.post(`/api/professionals/details/${professionalId}/message`, { message });
+    return response.data;
+  },
+
+  // Portfolio Likes
+  likePortfolio: async (portfolioId: string) => {
+    const response = await api.post(`/api/professionals/portfolio/${portfolioId}/like`);
+    return response.data;
+  },
+
+  unlikePortfolio: async (portfolioId: string) => {
+    const response = await api.delete(`/api/professionals/portfolio/${portfolioId}/like`);
+    return response.data;
+  },
+
+  getLikedPortfolios: async (ids: string[]) => {
+    const response = await api.get('/api/professionals/portfolio/likes/status', { params: { ids: ids.join(',') } });
+    return response.data;
+  },
+
+  // Portfolio Comments
+  getPortfolioComments: async (portfolioId: string) => {
+    const response = await api.get(`/api/professionals/portfolio/${portfolioId}/comments`);
+    return response.data;
+  },
+
+  addPortfolioComment: async (portfolioId: string, content: string) => {
+    const response = await api.post(`/api/professionals/portfolio/${portfolioId}/comments`, { content });
+    return response.data;
+  },
+
+  deletePortfolioComment: async (commentId: string) => {
+    const response = await api.delete(`/api/professionals/portfolio/comments/${commentId}`);
     return response.data;
   },
 };

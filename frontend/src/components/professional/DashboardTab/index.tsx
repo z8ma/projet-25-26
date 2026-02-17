@@ -82,7 +82,7 @@ export function DashboardTab({
               </svg>
             </div>
 
-            {/* Matchs totaux */}
+            {/* Followers */}
             <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 hover:bg-white/25 transition-all duration-300 group cursor-pointer">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -91,8 +91,8 @@ export function DashboardTab({
                   </svg>
                 </div>
               </div>
-              <div className="text-3xl font-bold">{dashboardStats?.stats?.totalMatches || 0}</div>
-              <div className="text-sm text-purple-200 mb-2">Matchs totaux</div>
+              <div className="text-3xl font-bold">{dashboardStats?.stats?.followersCount || 0}</div>
+              <div className="text-sm text-purple-200 mb-2">Abonnés</div>
               <svg className="w-full h-8" viewBox="0 0 100 24" preserveAspectRatio="none">
                 <polyline
                   points="0,22 14,20 28,18 42,14 57,16 71,10 85,8 100,6"
@@ -104,17 +104,17 @@ export function DashboardTab({
               </svg>
             </div>
 
-            {/* Recommandations */}
+            {/* Likes sur projets */}
             <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 hover:bg-white/25 transition-all duration-300 group cursor-pointer">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </div>
               </div>
-              <div className="text-3xl font-bold">{dashboardStats?.stats?.recommendationAppearances || 0}</div>
-              <div className="text-sm text-purple-200 mb-2">Recommandations</div>
+              <div className="text-3xl font-bold">{dashboardStats?.stats?.totalPortfolioLikes || 0}</div>
+              <div className="text-sm text-purple-200 mb-2">Likes projets</div>
               <svg className="w-full h-8" viewBox="0 0 100 24" preserveAspectRatio="none">
                 <polyline
                   points="0,18 14,16 28,12 42,10 57,8 71,5 85,4 100,2"
@@ -194,63 +194,59 @@ export function DashboardTab({
         </button>
       </div>
 
-      {/* Two-column layout: Active projects + Stats */}
+      {/* Three-column layout: Projects + Stats + Activity */}
       <div
         ref={projectsAnimation.ref}
         className={`grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-700 delay-300 ${
           projectsAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
-        {/* Active projects - takes 2 cols */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+        {/* Column 1: Active projects (compact) */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Projets en cours</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Projets actifs</h2>
             {(dashboardStats?.activeProjects?.length > 0) && (
               <button onClick={() => setActiveTab('missions')} className="text-sm text-purple-600 hover:text-purple-700 font-medium">
-                Voir tout
+                Tout voir
               </button>
             )}
           </div>
           {dashboardStats?.activeProjects?.length > 0 ? (
             <div className="space-y-3">
-              {dashboardStats.activeProjects.map((project: any) => {
-                const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-                  NOT_STARTED: { label: 'Non commencé', color: 'text-gray-600', bg: 'bg-gray-100' },
-                  IN_PROGRESS: { label: 'En cours', color: 'text-blue-600', bg: 'bg-blue-100' },
-                  REVIEW: { label: 'En revue', color: 'text-amber-600', bg: 'bg-amber-100' },
+              {dashboardStats.activeProjects.slice(0, 4).map((project: any) => {
+                const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
+                  NOT_STARTED: { label: 'À démarrer', color: 'text-gray-500', icon: '○' },
+                  IN_PROGRESS: { label: 'En cours', color: 'text-blue-500', icon: '◐' },
+                  REVIEW: { label: 'Review', color: 'text-amber-500', icon: '◑' },
                 };
                 const status = statusConfig[project.projectStatus] || statusConfig.NOT_STARTED;
                 return (
-                  <div key={project.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {project.projectTitle || 'Projet sans titre'}
-                      </h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-                        <span>{project.clientName}</span>
-                        {project.clientIndustry && <span>- {project.clientIndustry}</span>}
+                  <div key={project.id} className="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => setActiveTab('missions')}>
+                    <div className="flex items-start gap-2">
+                      <span className={`text-lg ${status.color}`}>{status.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900 truncate">
+                          {project.projectTitle || 'Projet sans titre'}
+                        </h3>
+                        <p className="text-xs text-gray-500 truncate">{project.clientName}</p>
                       </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.color} ${status.bg}`}>
-                      {status.label}
-                    </span>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-400">
-              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="text-center py-8 text-gray-400">
+              <svg className="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <p className="font-medium">Aucun projet en cours</p>
-              <p className="text-sm mt-1">Les projets acceptés apparaîtront ici</p>
+              <p className="text-sm font-medium">Aucun projet actif</p>
             </div>
           )}
         </div>
 
-        {/* Right column: Performance stats */}
-        <div className="space-y-4">
+        {/* Column 2: Performance stats */}
+        <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-gray-200 p-6">
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Performance</h2>
             <div className="space-y-4">
@@ -495,47 +491,165 @@ export function DashboardTab({
             </div>
           )}
         </div>
-      </div>
 
-      {/* Completed projects */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Projets finalisés</h2>
-        {dashboardStats?.completedProjects?.length > 0 ? (
-          <div className="space-y-3">
-            {dashboardStats.completedProjects.map((project: any) => (
-              <div key={project.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                <div className="flex-1">
-                  <h3 className="font-medium text-gray-900">
-                    {project.projectTitle || 'Projet'}
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <span>{project.clientName}</span>
-                    {project.clientIndustry && <span>- {project.clientIndustry}</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {project.rating && (
-                    <div className="flex items-center gap-1 text-yellow-500">
-                      <span>★</span>
-                      <span className="text-sm font-medium">{project.rating}</span>
+        {/* Column 3: Popular projects, Reviews and Collaborators */}
+        <div className="space-y-6">
+          {/* Top liked portfolio projects */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <svg className="w-4 h-4 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                Projets populaires
+              </h2>
+              {dashboardStats?.topLikedProjects?.length > 0 && (
+                <button onClick={() => setActiveTab('portfolio')} className="text-xs text-purple-600 hover:text-purple-700 font-medium">
+                  Tout voir
+                </button>
+              )}
+            </div>
+            {dashboardStats?.topLikedProjects?.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {dashboardStats.topLikedProjects.slice(0, 4).map((project: any) => {
+                  const getProjectImage = (project: any) => {
+                    return (
+                      project.imageUrl ||
+                      project.media?.find((m: any) => m.type === 'IMAGE')?.url ||
+                      project.media?.[0]?.thumbnailUrl ||
+                      project.media?.[0]?.url ||
+                      null
+                    );
+                  };
+                  const imageUrl = getProjectImage(project);
+
+                  return (
+                    <div
+                      key={project.id}
+                      onClick={() => setActiveTab('portfolio')}
+                      className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer"
+                    >
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={project.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
+                          <svg className="w-8 h-8 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute bottom-0 left-0 right-0 p-2 text-white transform translate-y-full group-hover:translate-y-0 transition-transform">
+                        <p className="text-xs font-medium truncate">{project.title}</p>
+                      </div>
+                      {project.likesCount > 0 && (
+                        <div className="absolute top-2 right-2 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-full flex items-center gap-1">
+                          <svg className="w-3 h-3 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                          <span className="text-xs font-semibold text-gray-700">{project.likesCount}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <span className="text-xs text-gray-400">
-                    {new Date(project.completedAt).toLocaleDateString('fr-FR')}
-                  </span>
-                </div>
+                  );
+                })}
               </div>
-            ))}
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <svg className="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm font-medium">Aucun projet</p>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-center py-8 text-gray-400">
-            <svg className="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p>Aucun projet finalisé</p>
-            <p className="text-sm">Vos projets terminés apparaîtront ici</p>
+
+          {/* Reviews received */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              Avis reçus
+            </h2>
+            {dashboardStats?.ratings?.length > 0 ? (
+              <div className="space-y-3">
+                {dashboardStats.ratings.slice(0, 2).map((review: any) => (
+                  <div key={review.id} className="p-3 bg-gray-50 rounded-xl">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 text-sm truncate">
+                          {review.projectTitle || 'Projet'}
+                        </h3>
+                        <p className="text-xs text-gray-500 truncate">
+                          {review.clientName}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-0.5 ml-2">
+                        {Array.from({ length: 5 }, (_, i) => (
+                          <svg
+                            key={i}
+                            className={`w-3.5 h-3.5 ${i < review.rating ? 'text-yellow-400' : 'text-gray-200'}`}
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                      </div>
+                    </div>
+                    {review.comment && (
+                      <p className="text-xs text-gray-700 italic line-clamp-2">"{review.comment}"</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-400">
+                <svg className="w-8 h-8 mx-auto mb-2 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                <p className="text-xs font-medium">Aucun avis</p>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Recent collaborators */}
+          {dashboardStats?.recentCollaborators?.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Collaborateurs récents</h2>
+              <div className="space-y-2">
+                {dashboardStats.recentCollaborators.slice(0, 3).map((collab: any) => (
+                  <div key={collab.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-xl">
+                    {collab.profilePictureUrl ? (
+                      <img
+                        src={collab.profilePictureUrl}
+                        alt={collab.companyName}
+                        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-semibold text-sm flex-shrink-0">
+                        {(collab.companyName || '?').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {collab.companyName || 'Entreprise'}
+                      </p>
+                      {collab.lastProject && (
+                        <p className="text-xs text-purple-600 truncate">{collab.lastProject}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
     </div>
