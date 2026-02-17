@@ -1816,7 +1816,7 @@ export class ProfessionalController {
           budget: budget ? parseFloat(budget as string) : undefined,
         };
 
-        const scoredPortfolios = discoveryService.sortByDiscoveryScore(allPortfolios as any, context);
+        const scoredPortfolios = await discoveryService.sortByDiscoveryScore(allPortfolios as any, context);
 
         // Diversification - éviter trop de projets du même pro consécutifs
         sortedPortfolios = discoveryService.diversifyResults(scoredPortfolios, 2);
@@ -1886,7 +1886,7 @@ export class ProfessionalController {
   // GET /api/professionals/portfolio/:portfolioId/comments - Get comments for a portfolio
   async getPortfolioComments(req: Request, res: Response) {
     try {
-      const { portfolioId } = req.params;
+      const portfolioId = req.params.portfolioId as string;
 
       const comments = await prisma.portfolioComment.findMany({
         where: { portfolioId },
@@ -1926,7 +1926,7 @@ export class ProfessionalController {
   // POST /api/professionals/portfolio/:portfolioId/comments - Add a comment to a portfolio
   async addPortfolioComment(req: Request, res: Response) {
     try {
-      const { portfolioId } = req.params;
+      const portfolioId = req.params.portfolioId as string;
       const { content } = req.body;
       const userId = req.userId as string;
 
@@ -2005,7 +2005,7 @@ export class ProfessionalController {
         await prisma.notification.create({
           data: {
             professionalId: portfolio.professionalId,
-            type: 'OTHER',
+            type: 'PORTFOLIO_COMMENT',
             title: 'Nouveau commentaire',
             message: `${commenterName} a commenté votre projet`,
           },
@@ -2021,7 +2021,7 @@ export class ProfessionalController {
   // DELETE /api/professionals/portfolio/comments/:commentId - Delete own comment
   async deletePortfolioComment(req: Request, res: Response) {
     try {
-      const { commentId } = req.params;
+      const commentId = req.params.commentId as string;
       const userId = req.userId as string;
 
       // Find comment

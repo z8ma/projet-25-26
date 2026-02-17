@@ -502,6 +502,7 @@ enum NotificationType {
   RATING_RECEIVED
   FOLLOW_RECEIVED
   PORTFOLIO_LIKED
+  PORTFOLIO_COMMENT
 
   @@map("notification_type")
 }
