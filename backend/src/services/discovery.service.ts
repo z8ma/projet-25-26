@@ -8,8 +8,8 @@
  * Phase 5 : Redis cache distribué avec fallback automatique
  */
 
-import { cacheService } from './cache.service';
-import { redisCacheService } from './redis-cache.service';
+import { cacheService } from './cache.service.js';
+import { redisCacheService } from './redis-cache.service.js';
 
 interface Portfolio {
   id: string;
