@@ -13,7 +13,7 @@
  */
 
 import Redis, { RedisOptions } from 'ioredis';
-import { cacheService as inMemoryCache } from './cache.service';
+import { cacheService as inMemoryCache } from './cache.service.js';
 
 interface CacheStats {
   hits: number;
