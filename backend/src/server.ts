@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import passport from 'passport';
 import authRoutes from './routes/auth.routes.js';
 import creatorRoutes from './routes/creator.routes.js';
 import professionalRoutes from './routes/professional.routes.js';
@@ -15,21 +16,28 @@ import favoritesRoutes from './routes/favorites.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import calendarRoutes from './routes/calendar.routes.js';
+import { configurePassport } from './config/passport.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configure Passport
+configurePassport();
 
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Raw body for Stripe webhooks (must be before express.json())
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));

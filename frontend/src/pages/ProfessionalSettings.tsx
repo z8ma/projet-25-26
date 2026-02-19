@@ -116,7 +116,7 @@ export default function ProfessionalSettings() {
 
     try {
       setDeleteLoading(true);
-      await api.delete('/auth/account');
+      await api.delete('/api/auth/account');
       logout();
       navigate('/');
     } catch (error: any) {

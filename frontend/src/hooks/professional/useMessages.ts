@@ -51,7 +51,7 @@ export function useMessages() {
 
   const loadConversations = async () => {
     try {
-      const response = await matchingApi.getConversations();
+      const response = await matchingApi.getConversationsProfessional();
       if (response.success) {
         setConversations(response.data);
       }

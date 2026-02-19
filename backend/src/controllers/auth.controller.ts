@@ -3,6 +3,7 @@ import { authService } from '../services/auth.service.js';
 import { registerSchema, loginSchema } from '../validators/auth.validator.js';
 import prisma from '../config/prisma.js';
 import bcrypt from 'bcryptjs';
+import { emailService } from '../services/email.service.js';
 
 export class AuthController {
   // POST /api/auth/register
@@ -16,7 +17,7 @@ export class AuthController {
 
       res.status(201).json({
         success: true,
-        message: 'Utilisateur créé avec succès',
+        message: 'Compte créé avec succès',
         data: result,
       });
     } catch (error: any) {
@@ -121,6 +122,14 @@ export class AuthController {
         });
       }
 
+      // Check if user has a password (not OAuth-only account)
+      if (!user.passwordHash) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ce compte utilise Google Sign-In et n\'a pas de mot de passe.',
+        });
+      }
+
       // Verify current password
       const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
       if (!isValidPassword) {
@@ -163,10 +172,49 @@ export class AuthController {
         });
       }
 
+      // Get user info before deletion (for email notification)
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          email: true,
+          creator: {
+            select: {
+              companyName: true,
+            },
+          },
+          professional: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Utilisateur non trouvé',
+        });
+      }
+
+      // Determine user name
+      const userName = user.professional
+        ? `${user.professional.firstName} ${user.professional.lastName}`.trim()
+        : user.creator?.companyName || 'Utilisateur';
+
       // Delete user (cascade will handle related data)
       await prisma.user.delete({
         where: { id: userId },
       });
+
+      // Send deletion confirmation email
+      try {
+        await emailService.sendAccountDeletionEmail(user.email, userName);
+      } catch (emailError) {
+        // Log email error but don't fail the deletion
+        console.error('Failed to send deletion email:', emailError);
+      }
 
       res.status(200).json({
         success: true,
@@ -176,6 +224,125 @@ export class AuthController {
       res.status(500).json({
         success: false,
         message: error.message || 'Erreur lors de la suppression du compte',
+      });
+    }
+  }
+
+  // GET /api/auth/google/callback
+  async googleCallback(req: Request, res: Response) {
+    try {
+      const user = req.user as any;
+
+      // If this is a new user, redirect to role selection
+      if (user.isNewUser) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const params = new URLSearchParams({
+          email: user.email,
+          googleId: user.googleId,
+          token: user.accessToken,
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+        });
+        return res.redirect(`${frontendUrl}/auth/google/complete?${params.toString()}`);
+      }
+
+      // Existing user - generate JWT and redirect
+      const token = authService.generateToken(user.id);
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(`${frontendUrl}/auth/google/success?token=${token}`);
+    } catch (error: any) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(error.message)}`);
+    }
+  }
+
+  // POST /api/auth/google/complete - Complete Google OAuth signup with role selection
+  async completeGoogleSignup(req: Request, res: Response) {
+    try {
+      const { googleId, email, role, firstName, lastName } = req.body;
+
+      if (!googleId || !email || !role) {
+        return res.status(400).json({
+          success: false,
+          message: 'Données manquantes',
+        });
+      }
+
+      // Use the auth service to complete Google signup
+      const result = await authService.completeGoogleSignup({
+        email,
+        googleId,
+        role,
+        firstName,
+        lastName,
+      });
+
+      const statusCode = result.isExisting ? 200 : 201;
+      const message = result.isExisting ? 'Compte lié avec succès' : 'Compte créé avec succès';
+
+      res.status(statusCode).json({
+        success: true,
+        message,
+        data: { token: result.token, user: result.user },
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la création du compte',
+      });
+    }
+  }
+
+  // GET /api/auth/verify-email - Verify email with token
+  async verifyEmail(req: Request, res: Response) {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Token de vérification manquant',
+        });
+      }
+
+      const result = await authService.verifyEmail(token);
+
+      res.status(200).json({
+        success: true,
+        message: 'Email vérifié avec succès',
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Erreur lors de la vérification de l\'email',
+      });
+    }
+  }
+
+  // POST /api/auth/resend-verification - Resend verification email
+  async resendVerification(req: Request, res: Response) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email manquant',
+        });
+      }
+
+      const result = await authService.resendVerification(email);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Erreur lors du renvoi de l\'email de vérification',
       });
     }
   }
