@@ -5,6 +5,8 @@ interface User {
   id: string;
   email: string;
   role: 'CREATOR' | 'PROFESSIONAL';
+  emailVerified?: boolean;
+  googleId?: string | null;
   createdAt?: string;
   creator?: {
     id: string;
@@ -37,6 +39,7 @@ interface AuthState {
   logout: () => void;
   loadUser: () => Promise<void>;
   clearError: () => void;
+  setAuth: (token: string, user: User) => void;
 }
 
 // Initialize user from localStorage if available
@@ -134,4 +137,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  setAuth: (token, user) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user, token });
+  },
 }));

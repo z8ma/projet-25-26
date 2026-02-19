@@ -878,9 +878,11 @@ export class ProfessionalController {
 
       if (search) {
         where.OR = [
-          { firstName: { contains: search as string, mode: 'insensitive' } },
-          { lastName: { contains: search as string, mode: 'insensitive' } },
-          { bio: { contains: search as string, mode: 'insensitive' } },
+          { firstName: { contains: search as string } },
+          { lastName: { contains: search as string } },
+          { bio: { contains: search as string } },
+          { softwareSkills: { some: { softwareName: { contains: search as string } } } },
+          { professions: { some: { profession: { name: { contains: search as string } } } } },
         ];
       }
 
@@ -1756,9 +1758,11 @@ export class ProfessionalController {
 
       if (search) {
         where.OR = [
-          { title: { contains: search as string, mode: 'insensitive' } },
-          { description: { contains: search as string, mode: 'insensitive' } },
-          { tags: { some: { tag: { contains: search as string, mode: 'insensitive' } } } },
+          { title: { contains: search as string } },
+          { description: { contains: search as string } },
+          { tags: { some: { tag: { contains: search as string } } } },
+          { professional: { firstName: { contains: search as string } } },
+          { professional: { lastName: { contains: search as string } } },
         ];
       }
 
