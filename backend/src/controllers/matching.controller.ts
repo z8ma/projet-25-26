@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import prisma from '../config/prisma.js';
 import { NotificationController } from './notification.controller.js';
 import { matchingService } from '../services/matching.service.js';
-import { geminiService } from '../services/gemini.service.js';
+import { geminiService, generateProjectSummary } from '../services/gemini.service.js';
+import { emailService } from '../services/email.service.js';
 
 export class MatchingController {
   // POST /api/matching/conversations/:conversationId/match - Generate matches for conversation
@@ -64,8 +65,40 @@ export class MatchingController {
         },
       });
 
-      // Smart matching algorithm using AI analysis
-      const matches = await this.calculateMatchesWithAI(conversation, professionals, creator);
+      // Run AI matching AND rich brief generation in parallel
+      const conversationMessages = ((conversation.messages as any[]) || []).map((m: any) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content as string,
+      }));
+
+      const [matches, briefResult] = await Promise.all([
+        this.calculateMatchesWithAI(conversation, professionals, creator),
+        generateProjectSummary(conversationMessages),
+      ]);
+
+      // Parse and save the rich brief
+      if (briefResult.text) {
+        try {
+          const cleaned = briefResult.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          const brief = JSON.parse(cleaned);
+          const currentInsights = (conversation.projectInsights as any) || {};
+
+          await prisma.aiConversation.update({
+            where: { id: conversationId as string },
+            data: {
+              projectSummary: brief.summary || '',
+              projectInsights: {
+                ...currentInsights,
+                ...brief.insights,
+                sections: brief.sections,
+                keywords: brief.keywords || [],
+              },
+            },
+          });
+        } catch (briefErr) {
+          console.error('Failed to parse/save project brief:', briefErr);
+        }
+      }
 
       // Delete existing matches for this conversation
       await prisma.match.deleteMany({
@@ -299,6 +332,16 @@ Messages du créateur : ${userMessages || 'Aucun'}`;
         `Un créateur vous a contacté pour le projet: ${match.conversation.projectTitle}`,
         matchId as string
       );
+
+      // Send email to professional (non-blocking)
+      const proName = `${match.professional.firstName} ${match.professional.lastName}`.trim() || 'Professionnel';
+      const creatorName = match.conversation.creator.companyName || 'Un créateur';
+      emailService.sendMatchContactedEmail(
+        match.professional.user.email,
+        proName,
+        creatorName,
+        match.conversation.projectTitle || 'Projet sans titre',
+      ).catch(err => console.error('Failed to send match contacted email:', err));
 
       res.json({
         success: true,
@@ -733,6 +776,80 @@ Messages du créateur : ${userMessages || 'Aucun'}`;
       res.json({
         success: true,
         message: 'Statut du projet mis à jour avec succès',
+        data: updatedMatch,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la mise à jour',
+      });
+    }
+  }
+
+  // PUT /api/matching/matches/:matchId/creator-project-status — creator validates project progress
+  async creatorUpdateProjectStatus(req: Request, res: Response) {
+    try {
+      const { matchId } = req.params;
+      const { projectStatus } = req.body;
+      const userId = req.userId as string;
+
+      const ALLOWED_STATUSES = ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+      if (!ALLOWED_STATUSES.includes(projectStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Statut non autorisé. Valeurs acceptées : IN_PROGRESS, COMPLETED, CANCELLED',
+        });
+      }
+
+      const creator = await prisma.creator.findUnique({ where: { userId } });
+      if (!creator) {
+        return res.status(404).json({ success: false, message: 'Profil créateur non trouvé' });
+      }
+
+      // Verify the match belongs to one of this creator's conversations
+      const match = await prisma.match.findFirst({
+        where: {
+          id: matchId as string,
+          status: 'ACCEPTED',
+          conversation: { creatorId: creator.id },
+        },
+        include: {
+          professional: { select: { id: true, firstName: true, lastName: true } },
+          conversation: { select: { projectTitle: true, creator: { select: { id: true } } } },
+        },
+      });
+
+      if (!match) {
+        return res.status(404).json({ success: false, message: 'Match non trouvé ou non autorisé' });
+      }
+
+      const updateData: any = { projectStatus };
+      if (projectStatus === 'IN_PROGRESS' && !match.startedAt) {
+        updateData.startedAt = new Date();
+      }
+      if (projectStatus === 'COMPLETED' && !match.completedAt) {
+        updateData.completedAt = new Date();
+      }
+
+      const updatedMatch = await prisma.match.update({
+        where: { id: matchId as string },
+        data: updateData,
+      });
+
+      // Notify professional of status change
+      if (projectStatus === 'COMPLETED') {
+        await NotificationController.createNotification(
+          match.professionalId,
+          'PROJECT_COMPLETED',
+          'Mission validée !',
+          `Le créateur a validé le projet "${match.conversation.projectTitle}" — félicitations !`,
+          matchId as string,
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Statut mis à jour avec succès',
         data: updatedMatch,
       });
     } catch (error: any) {

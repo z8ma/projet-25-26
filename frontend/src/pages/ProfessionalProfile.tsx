@@ -545,15 +545,15 @@ export default function ProfessionalProfile() {
       const img = bannerImageRef.current!;
       const container = bannerContainerRef.current!;
 
-      // Banner output dimensions (16:9 aspect ratio, high quality)
+      // Banner output dimensions (3:1 aspect ratio, high quality)
       const outputWidth = 1200;
-      const outputHeight = 300;
+      const outputHeight = 400;
       canvas.width = outputWidth;
       canvas.height = outputHeight;
 
       // Get the preview dimensions
       const previewWidth = container.clientWidth;
-      const previewHeight = 200; // Fixed preview height
+      const previewHeight = container.clientHeight;
 
       // Scale factor from preview to output
       const scaleFactorX = outputWidth / previewWidth;
@@ -929,57 +929,46 @@ export default function ProfessionalProfile() {
       <div className={`transition-all duration-300 ${isCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}>
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100">
-          <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+          <div className="flex items-center gap-4 px-4 sm:px-6 lg:px-8 h-16">
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
             >
               <svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
 
-            {/* Page Title - visible on mobile */}
-            <h1 className="lg:hidden text-lg font-semibold text-gray-900">
-              {MENU_ITEMS.find(item => item.id === activeTab)?.label || 'Tableau de bord'}
-            </h1>
-
-            {/* Search Bar - Desktop */}
-            <div className="hidden lg:flex flex-1 max-w-xl">
-              <div className="relative w-full">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Rechercher..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 transition-all duration-200"
-                />
+            {/* Page Title */}
+            <div className="flex items-center gap-2.5 flex-1">
+              <div className="hidden lg:flex w-8 h-8 rounded-lg bg-purple-50 items-center justify-center text-purple-600 flex-shrink-0">
+                <MenuIcon icon={MENU_ITEMS.find(item => item.id === activeTab)?.icon || 'chart'} className="w-4 h-4" />
               </div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                {MENU_ITEMS.find(item => item.id === activeTab)?.label || 'Tableau de bord'}
+              </h1>
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-2 sm:gap-4">
-              {/* Notifications */}
+            <div className="flex items-center gap-3">
               <NotificationDropdown />
-
-              {/* Profile Quick Access - Desktop */}
-              <div className="hidden sm:flex items-center gap-3 pl-4 border-l border-gray-200">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {firstName} {lastName}
-                  </p>
-                  <p className="text-xs text-gray-500">Professionnel</p>
-                </div>
+              <button
+                onClick={() => setActiveTab('profile')}
+                className="flex items-center gap-3 pl-3 border-l border-gray-200 hover:opacity-80 transition-opacity"
+              >
                 {profilePictureUrl ? (
-                  <img src={profilePictureUrl} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-purple-200" />
+                  <img src={profilePictureUrl} alt="Profile" className="w-9 h-9 rounded-full object-cover border-2 border-purple-200" />
                 ) : (
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                  <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                     {firstName ? firstName[0]?.toUpperCase() : '?'}
                   </div>
                 )}
-              </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-medium text-gray-900 leading-tight">{firstName} {lastName}</p>
+                  <p className="text-xs text-gray-500">Professionnel</p>
+                </div>
+              </button>
             </div>
           </div>
         </header>
@@ -1850,8 +1839,8 @@ export default function ProfessionalProfile() {
               {/* Preview Area */}
               <div
                 ref={bannerContainerRef}
-                className="relative bg-gray-900 rounded-xl overflow-hidden mb-4 select-none"
-                style={{ height: '200px' }}
+                className="relative bg-gray-900 rounded-xl overflow-hidden mb-4 select-none w-full"
+                style={{ aspectRatio: '3 / 1' }}
               >
                 <div
                   className={`absolute inset-0 flex items-center justify-center touch-none ${isBannerDragging ? 'cursor-grabbing' : 'cursor-grab'
@@ -1879,19 +1868,6 @@ export default function ProfessionalProfile() {
                     }}
                     draggable={false}
                   />
-                </div>
-
-                {/* Overlay with crop zone */}
-                <div className="absolute inset-0 pointer-events-none">
-                  <svg width="100%" height="100%" preserveAspectRatio="none">
-                    <defs>
-                      <mask id="bannerMask">
-                        <rect width="100%" height="100%" fill="white" />
-                        <rect x="0" y="0" width="100%" height="100%" fill="black" />
-                      </mask>
-                    </defs>
-                    <rect x="0" y="0" width="100%" height="100%" fill="none" stroke="white" strokeWidth="3" strokeDasharray="8 4" opacity="0.8" />
-                  </svg>
                 </div>
 
                 {/* Instructions */}

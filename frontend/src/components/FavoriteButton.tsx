@@ -5,6 +5,7 @@ interface FavoriteButtonProps {
   professionalId: string;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
+  variant?: 'icon' | 'follow';
   onToggle?: (isSaved: boolean) => void;
 }
 
@@ -12,6 +13,7 @@ export default function FavoriteButton({
   professionalId,
   size = 'md',
   showLabel = false,
+  variant = 'icon',
   onToggle,
 }: FavoriteButtonProps) {
   const [isSaved, setIsSaved] = useState(false);
@@ -69,6 +71,44 @@ export default function FavoriteButton({
     lg: 'w-6 h-6',
   };
 
+  if (variant === 'follow') {
+    if (initialLoading) {
+      return (
+        <div className="h-9 w-24 bg-gray-100 rounded-xl animate-pulse" />
+      );
+    }
+
+    return (
+      <button
+        onClick={toggleFavorite}
+        disabled={loading}
+        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all shadow-sm ${
+          isSaved
+            ? 'bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 shadow-gray-200/50'
+            : 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-500/25 hover:shadow-lg hover:shadow-primary-500/20'
+        } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        {loading ? (
+          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        ) : isSaved ? (
+          <>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Abonné
+          </>
+        ) : (
+          <>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Suivre
+          </>
+        )}
+      </button>
+    );
+  }
+
   if (initialLoading) {
     return (
       <div className={`${sizeClasses[size]} flex items-center justify-center`}>
@@ -105,7 +145,7 @@ export default function FavoriteButton({
       </svg>
       {showLabel && (
         <span className="ml-2 text-sm font-medium">
-          {isSaved ? 'Favori' : 'Ajouter'}
+          {isSaved ? 'Abonné' : 'Suivre'}
         </span>
       )}
     </button>

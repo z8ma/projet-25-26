@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { aiApi } from '../services/api';
+import { aiApi, subscriptionApi, matchingApi, ratingApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
 import ProjectExportModal from '../components/ProjectExportModal';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -54,12 +54,20 @@ export default function CreatorProjects() {
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; project: Conversation | null }>({ open: false, project: null });
   const [deleting, setDeleting] = useState(false);
   const [exportModal, setExportModal] = useState<{ open: boolean; project: Conversation | null }>({ open: false, project: null });
+  const [isFreeTier, setIsFreeTier] = useState<boolean | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null); // matchId being updated
+  const [ratingModal, setRatingModal] = useState<{ open: boolean; matchId: string; proName: string } | null>(null);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratedMatches, setRatedMatches] = useState<Set<string>>(new Set());
 
-  // Scroll animations
-  const headerAnimation = useScrollAnimation();
+  const titleAnimation = useScrollAnimation();
+  const searchAnimation = useScrollAnimation();
   const statsAnimation = useScrollAnimation();
   const filtersAnimation = useScrollAnimation();
-  const projectsAnimation = useScrollAnimation();
+  const listAnimation = useScrollAnimation();
 
   useEffect(() => {
     if (!token) {
@@ -71,6 +79,9 @@ export default function CreatorProjects() {
       return;
     }
     fetchConversations();
+    subscriptionApi.getCurrent().then((res) => {
+      if (res.success) setIsFreeTier(res.data.isFreeTier ?? false);
+    }).catch(() => setIsFreeTier(true));
   }, [token, user, navigate]);
 
   const fetchConversations = async () => {
@@ -109,6 +120,40 @@ export default function CreatorProjects() {
   const openExportModal = (e: React.MouseEvent, project: Conversation) => {
     e.stopPropagation(); // Prevent expanding the project card
     setExportModal({ open: true, project });
+  };
+
+  const handleCreatorStatusUpdate = async (e: React.MouseEvent, matchId: string, projectStatus: string) => {
+    e.stopPropagation();
+    if (updatingStatus) return;
+    setUpdatingStatus(matchId);
+    try {
+      await matchingApi.creatorUpdateProjectStatus(matchId, { projectStatus });
+      // Update local state
+      setConversations(prev => prev.map(c => ({
+        ...c,
+        matches: c.matches.map(m => m.id === matchId ? { ...m, projectStatus: projectStatus as Match['projectStatus'] } : m),
+      })));
+    } catch (error) {
+      console.error('Erreur mise à jour statut:', error);
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (!ratingModal || ratingValue === 0 || ratingSubmitting) return;
+    setRatingSubmitting(true);
+    try {
+      await ratingApi.createRating({ matchId: ratingModal.matchId, rating: ratingValue, comment: ratingComment.trim() || undefined });
+      setRatedMatches(prev => new Set(prev).add(ratingModal.matchId));
+      setRatingModal(null);
+      setRatingValue(0);
+      setRatingComment('');
+    } catch (error) {
+      console.error('Erreur lors de la soumission de l\'avis:', error);
+    } finally {
+      setRatingSubmitting(false);
+    }
   };
 
   // Statistiques
@@ -235,30 +280,15 @@ export default function CreatorProjects() {
     { id: 'pending', label: 'En attente', bgColor: 'bg-gray-100 hover:bg-gray-200 text-gray-700', activeColor: 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/30' },
   ];
 
-  if (loading) {
-    return (
-      <CreatorLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500">Chargement de vos projets...</p>
-          </div>
-        </div>
-      </CreatorLayout>
-    );
-  }
-
   return (
     <CreatorLayout>
       {/* Header */}
-      <div
-        ref={headerAnimation.ref}
-        className={`mb-8 transition-all duration-700 ${
-          headerAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-        }`}
-      >
+      <div className="mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
+          <div
+            ref={titleAnimation.ref}
+            className={`transition-[opacity,transform] duration-700 ${titleAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          >
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center">
                 <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -271,7 +301,10 @@ export default function CreatorProjects() {
           </div>
 
           {/* Search */}
-          <div className="relative">
+          <div
+            ref={searchAnimation.ref}
+            className={`relative transition-[opacity,transform] duration-700 delay-100 ${searchAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          >
             <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -288,9 +321,7 @@ export default function CreatorProjects() {
         {/* Stats Cards */}
         <div
           ref={statsAnimation.ref}
-          className={`grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 transition-all duration-700 delay-100 ${
-            statsAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          }`}
+          className={`grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 transition-[opacity,transform] duration-700 delay-100 ${statsAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         >
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
@@ -349,9 +380,7 @@ export default function CreatorProjects() {
         {/* Filters */}
         <div
           ref={filtersAnimation.ref}
-          className={`flex flex-wrap gap-3 mt-6 transition-all duration-700 delay-200 ${
-            filtersAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          }`}
+          className={`flex flex-wrap gap-3 mt-6 transition-[opacity,transform] duration-700 delay-200 ${filtersAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         >
           {FILTER_OPTIONS.map((option) => (
             <button
@@ -376,11 +405,18 @@ export default function CreatorProjects() {
 
       {/* Projects List */}
       <div
-        ref={projectsAnimation.ref}
-        className={`transition-all duration-700 delay-300 ${
-          projectsAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-        }`}
+        ref={listAnimation.ref}
+        className={`transition-[opacity,transform] duration-700 delay-300 ${listAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
       >
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500">Chargement de vos projets...</p>
+          </div>
+        </div>
+      ) : (
+      <div key={filter} className="animate-in fade-in slide-in-from-bottom-2 duration-200">
       {filteredConversations.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12">
           <div className="flex flex-col items-center justify-center">
@@ -447,7 +483,7 @@ export default function CreatorProjects() {
                               className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 border-2 border-white flex items-center justify-center text-white font-semibold text-sm shadow-sm"
                               title={`${match.professional.firstName} ${match.professional.lastName}`}
                             >
-                              {match.professional.firstName[0]}{match.professional.lastName[0]}
+                              {match.professional.firstName?.[0] ?? '?'}{match.professional.lastName?.[0] ?? ''}
                             </div>
                           ))}
                           {allProfessionals.length > 4 && (
@@ -541,6 +577,14 @@ export default function CreatorProjects() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                           </svg>
                           Créatifs associés
+                          {isFreeTier === true && allProfessionals.length > 1 && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                              {allProfessionals.length - 1} verrouillé{allProfessionals.length - 1 > 1 ? 's' : ''}
+                            </span>
+                          )}
                         </h4>
                         <Link
                           to={`/brainstorming/${conversation.id}`}
@@ -570,8 +614,48 @@ export default function CreatorProjects() {
                         </div>
                       ) : (
                         <div className="grid gap-4">
-                          {allProfessionals.map((match) => {
+                          {allProfessionals.map((match, matchIndex) => {
                             const statusBadge = getMatchStatusBadge(match.status);
+                            // Free tier: only first match is visible
+                            if (isFreeTier === true && matchIndex > 0) {
+                              return (
+                                <div key={match.id} className="relative bg-white border border-gray-200 rounded-xl p-4 overflow-hidden">
+                                  {/* Blurred ghost content */}
+                                  <div className="blur-sm pointer-events-none select-none" aria-hidden>
+                                    <div className="flex items-center gap-4">
+                                      <div className="w-14 h-14 rounded-xl bg-gray-200 flex-shrink-0" />
+                                      <div className="flex-1">
+                                        <div className="h-4 bg-gray-200 rounded-lg w-32 mb-2" />
+                                        <div className="h-3 bg-gray-100 rounded-lg w-24 mb-2" />
+                                        <div className="flex gap-3">
+                                          <div className="h-3 bg-gray-100 rounded-lg w-16" />
+                                          <div className="h-3 bg-gray-100 rounded-lg w-16" />
+                                        </div>
+                                      </div>
+                                      <div className="w-14 h-14 rounded-full bg-gray-100 flex-shrink-0" />
+                                    </div>
+                                  </div>
+                                  {/* Lock overlay */}
+                                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[2px]">
+                                    <div className="text-center px-4">
+                                      <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <svg className="w-5 h-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                      </div>
+                                      <p className="text-sm font-semibold text-gray-800">Profil verrouillé</p>
+                                      <p className="text-xs text-gray-500 mt-0.5">Plan Starter requis</p>
+                                      <Link
+                                        to="/settings"
+                                        className="mt-2 inline-block px-3 py-1.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-xs font-semibold rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all shadow-sm"
+                                      >
+                                        Passer au Starter
+                                      </Link>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
                             return (
                               <div
                                 key={match.id}
@@ -580,7 +664,7 @@ export default function CreatorProjects() {
                                 <div className="flex items-center gap-4">
                                   {/* Avatar */}
                                   <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-sm">
-                                    {match.professional.firstName[0]}{match.professional.lastName[0]}
+                                    {match.professional.firstName?.[0] ?? '?'}{match.professional.lastName?.[0] ?? ''}
                                   </div>
 
                                   {/* Info */}
@@ -639,14 +723,14 @@ export default function CreatorProjects() {
                                             cx="28"
                                             cy="28"
                                             r="24"
-                                            stroke="url(#gradientLight)"
+                                            stroke={`url(#gradient-${match.id})`}
                                             strokeWidth="4"
                                             fill="none"
                                             strokeDasharray={`${(match.matchScore / 100) * 150.8} 150.8`}
                                             className="transition-all duration-500"
                                           />
                                           <defs>
-                                            <linearGradient id="gradientLight" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <linearGradient id={`gradient-${match.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
                                               <stop offset="0%" stopColor="#f97316" />
                                               <stop offset="100%" stopColor="#ec4899" />
                                             </linearGradient>
@@ -669,7 +753,7 @@ export default function CreatorProjects() {
                                 </div>
 
                                 {/* Reasoning */}
-                                {match.reasoning && (
+                                {match.reasoning && match.status !== 'ACCEPTED' && (
                                   <div className="mt-3 p-3 bg-primary-50/50 rounded-lg border border-primary-100">
                                     <p className="text-xs text-gray-600 italic flex items-start gap-1.5">
                                       <svg className="w-3.5 h-3.5 text-primary-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -677,6 +761,92 @@ export default function CreatorProjects() {
                                       </svg>
                                       {match.reasoning}
                                     </p>
+                                  </div>
+                                )}
+
+                                {/* Mission tracking actions for ACCEPTED matches */}
+                                {match.status === 'ACCEPTED' && match.projectStatus !== 'COMPLETED' && match.projectStatus !== 'CANCELLED' && (
+                                  <div className="mt-3 flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
+                                    {/* Link to messages */}
+                                    <Link
+                                      to="/messages"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-medium transition-colors border border-blue-200"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                      </svg>
+                                      Messages
+                                    </Link>
+
+                                    {/* Start project (NOT_STARTED → IN_PROGRESS) */}
+                                    {match.projectStatus === 'NOT_STARTED' && (
+                                      <button
+                                        onClick={(e) => handleCreatorStatusUpdate(e, match.id, 'IN_PROGRESS')}
+                                        disabled={updatingStatus === match.id}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium transition-colors border border-indigo-200 disabled:opacity-50"
+                                      >
+                                        {updatingStatus === match.id ? (
+                                          <div className="w-3 h-3 border border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                          </svg>
+                                        )}
+                                        Démarrer la mission
+                                      </button>
+                                    )}
+
+                                    {/* Validate delivery (IN_PROGRESS or REVIEW → COMPLETED) */}
+                                    {(match.projectStatus === 'IN_PROGRESS' || match.projectStatus === 'REVIEW') && (
+                                      <button
+                                        onClick={(e) => handleCreatorStatusUpdate(e, match.id, 'COMPLETED')}
+                                        disabled={updatingStatus === match.id}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium transition-colors border border-emerald-200 disabled:opacity-50"
+                                      >
+                                        {updatingStatus === match.id ? (
+                                          <div className="w-3 h-3 border border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                          </svg>
+                                        )}
+                                        Valider et terminer
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Completed state */}
+                                {match.status === 'ACCEPTED' && match.projectStatus === 'COMPLETED' && (
+                                  <div className="mt-3 flex items-center justify-between pt-3 border-t border-gray-100">
+                                    <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium">
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      Mission terminée
+                                      {match.completedAt && <span className="text-gray-400 font-normal">· {formatDate(match.completedAt)}</span>}
+                                    </div>
+                                    {!ratedMatches.has(match.id) && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setRatingValue(0); setRatingComment(''); setRatingModal({ open: true, matchId: match.id, proName: `${match.professional.firstName} ${match.professional.lastName}` }); }}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-medium transition-colors border border-amber-200"
+                                      >
+                                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                        </svg>
+                                        Laisser un avis
+                                      </button>
+                                    )}
+                                    {ratedMatches.has(match.id) && (
+                                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                                        <svg className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                        </svg>
+                                        Avis envoyé
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -692,6 +862,9 @@ export default function CreatorProjects() {
           })}
         </div>
       )}
+      </div>
+      )}
+      </div>
 
       {/* Floating Action Button */}
       <Link
@@ -703,7 +876,6 @@ export default function CreatorProjects() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
       </Link>
-      </div>
 
       {/* Delete Confirmation Modal */}
       {deleteModal.open && deleteModal.project && (
@@ -768,6 +940,99 @@ export default function CreatorProjects() {
           project={exportModal.project as any}
           onClose={() => setExportModal({ open: false, project: null })}
         />
+      )}
+
+      {/* Rating Modal */}
+      {ratingModal?.open && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Laisser un avis</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Pour {ratingModal.proName}</p>
+              </div>
+              <button
+                onClick={() => setRatingModal(null)}
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Star Rating */}
+            <div className="mb-5">
+              <p className="text-sm font-medium text-gray-700 mb-3">Note globale</p>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setRatingValue(star)}
+                    onMouseEnter={() => setRatingHover(star)}
+                    onMouseLeave={() => setRatingHover(0)}
+                    className="focus:outline-none transition-transform hover:scale-110"
+                  >
+                    <svg
+                      className={`w-9 h-9 transition-colors ${(ratingHover || ratingValue) >= star ? 'text-amber-400' : 'text-gray-200'}`}
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  </button>
+                ))}
+                {ratingValue > 0 && (
+                  <span className="ml-2 text-sm font-medium text-gray-600">
+                    {['', 'Décevant', 'Passable', 'Bien', 'Très bien', 'Excellent'][ratingValue]}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Comment */}
+            <div className="mb-6">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">
+                Commentaire <span className="text-gray-400 font-normal">(optionnel)</span>
+              </label>
+              <textarea
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+                rows={3}
+                placeholder="Partagez votre expérience avec ce créatif..."
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none transition-all"
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-400 text-right mt-1">{ratingComment.length}/500</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRatingModal(null)}
+                disabled={ratingSubmitting}
+                className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSubmitRating}
+                disabled={ratingValue === 0 || ratingSubmitting}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white rounded-xl font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-amber-400/30"
+              >
+                {ratingSubmitting ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    Envoyer mon avis
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </CreatorLayout>
   );

@@ -128,14 +128,14 @@ export function PortfolioModal({
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div
-        className={`bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl transition-all duration-400 ease-out ${
+        className={`bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl transition-all duration-400 ease-out ${
           isVisible
             ? 'opacity-100 scale-100 translate-y-0'
             : 'opacity-0 scale-95 translate-y-8'
         }`}
       >
         {/* Header with gradient */}
-        <div className="relative px-8 py-6 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 overflow-hidden">
+        <div className="relative px-8 py-6 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 overflow-hidden flex-shrink-0">
           {/* Background decoration */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute -top-8 -right-8 w-32 h-32 bg-white rounded-full" />
@@ -162,7 +162,7 @@ export function PortfolioModal({
         </div>
 
         {/* Scrollable content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
+        <div className="overflow-y-auto flex-1">
           <div className="p-8 space-y-6">
 
             {/* Title & Description row */}
@@ -602,7 +602,7 @@ export function PortfolioModal({
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-5 border-t border-gray-100 flex gap-3 bg-gray-50/50">
+        <div className="px-8 py-5 border-t border-gray-100 flex gap-3 bg-gray-50/50 flex-shrink-0">
           <button
             onClick={handleClose}
             className="flex-1 py-3.5 border border-gray-200 text-gray-600 rounded-2xl font-semibold text-sm hover:bg-white hover:border-gray-300 hover:text-gray-800 transition-all"

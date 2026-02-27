@@ -200,12 +200,12 @@ export function ProfileView({
       {/* Banner + Profile Card Container */}
       <div
         ref={profileHeaderAnimation.ref}
-        className={`bg-white rounded-2xl border border-gray-200 transition-all duration-700 ${
+        className={`space-y-4 transition-all duration-700 ${
           profileHeaderAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
         {/* Banner */}
-        <div className="relative h-48 md:h-56 group rounded-t-2xl overflow-hidden">
+        <div className="relative w-full aspect-[3/1] max-h-48 group rounded-2xl overflow-hidden">
           {bannerUrl ? (
             <img src={bannerUrl} alt="Bannière" className="w-full h-full object-cover" />
           ) : (
@@ -251,10 +251,11 @@ export function ProfileView({
         </div>
 
         {/* Profile Info Section */}
-        <div className="px-6 py-5 bg-white">
+        <div className="bg-white rounded-2xl border border-gray-200">
+        <div className="px-6 py-5">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
             {/* Profile Picture */}
-            <div className="relative -mt-20 sm:-mt-16">
+            <div className="relative">
               {profilePictureUrl ? (
                 <img src={profilePictureUrl} alt="Profile" className="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-white shadow-xl" />
               ) : (
@@ -440,6 +441,7 @@ export function ProfileView({
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
 

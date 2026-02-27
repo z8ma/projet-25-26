@@ -67,10 +67,31 @@ export class WebhookController {
     const stripeSubscriptionId = session.subscription as string;
     const stripeCustomerId = session.customer as string;
 
+    // Idempotence: skip if this Stripe subscription is already recorded
+    const existing = await prisma.subscription.findFirst({
+      where: { stripeSubscriptionId },
+    });
+    if (existing) {
+      console.log(`Checkout already processed for Stripe subscription ${stripeSubscriptionId}`);
+      return;
+    }
+
     // Get subscription details from Stripe
     const stripeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
-    // Cancel any existing active subscriptions
+    // Cancel old active subscriptions — both in DB and on Stripe
+    const oldSubs = await prisma.subscription.findMany({
+      where: { userId, status: 'ACTIVE' },
+    });
+    for (const oldSub of oldSubs) {
+      if (oldSub.stripeSubscriptionId && oldSub.stripeSubscriptionId !== stripeSubscriptionId) {
+        try {
+          await stripe.subscriptions.cancel(oldSub.stripeSubscriptionId);
+        } catch (err) {
+          console.error(`Failed to cancel old Stripe subscription ${oldSub.stripeSubscriptionId}:`, err);
+        }
+      }
+    }
     await prisma.subscription.updateMany({
       where: { userId, status: 'ACTIVE' },
       data: { status: 'CANCELLED' },
@@ -118,15 +139,35 @@ export class WebhookController {
       status = 'EXPIRED';
     }
 
+    // Sync planId from Stripe price (handles Customer Portal plan changes)
+    const updateData: any = {
+      status,
+      cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+      expiresAt: (stripeSubscription as any).current_period_end
+        ? new Date((stripeSubscription as any).current_period_end * 1000)
+        : null,
+    };
+
+    const stripePriceId = stripeSubscription.items.data[0]?.price?.id;
+    if (stripePriceId) {
+      const matchingPlan = await prisma.subscriptionPlan.findFirst({
+        where: {
+          OR: [
+            { stripePriceIdMonthly: stripePriceId },
+            { stripePriceIdYearly: stripePriceId },
+          ],
+        },
+      });
+      if (matchingPlan && matchingPlan.id !== subscription.planId) {
+        updateData.planId = matchingPlan.id;
+        updateData.billingCycle = matchingPlan.stripePriceIdYearly === stripePriceId ? 'yearly' : 'monthly';
+        console.log(`Plan synced to ${matchingPlan.name} for subscription ${subscription.id}`);
+      }
+    }
+
     await prisma.subscription.update({
       where: { id: subscription.id },
-      data: {
-        status,
-        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        expiresAt: (stripeSubscription as any).current_period_end
-          ? new Date((stripeSubscription as any).current_period_end * 1000)
-          : null,
-      },
+      data: updateData,
     });
 
     console.log(`Subscription ${subscription.id} updated to status: ${status}`);
@@ -148,15 +189,23 @@ export class WebhookController {
 
   private async handlePaymentSucceeded(invoice: Stripe.Invoice) {
     const stripeSubscriptionId = (invoice as any).subscription as string;
+    const billingReason = (invoice as any).billing_reason as string;
 
     if (!stripeSubscriptionId) return;
+
+    // Only reset credits on actual renewal cycles, not on proration invoices
+    // (proration happens on plan upgrades/downgrades and should not reset credits)
+    if (billingReason !== 'subscription_cycle') {
+      console.log(`Skipping credit reset for billing_reason: ${billingReason}`);
+      return;
+    }
 
     const subscription = await prisma.subscription.findFirst({
       where: { stripeSubscriptionId },
     });
 
     if (subscription) {
-      // Reset credits on successful payment (new billing period)
+      // Reset credits on successful renewal payment
       const resetDate = new Date();
       resetDate.setMonth(resetDate.getMonth() + 1);
 

@@ -4,6 +4,7 @@ import { validateExternalUrl, validateExternalUrlWithSafeBrowsing } from '../uti
 import { deleteImageByUrl, uploadFile, deleteMedia } from '../services/upload.service.js';
 import { NotificationController } from './notification.controller.js';
 import { discoveryService } from '../services/discovery.service.js';
+import { emailService } from '../services/email.service.js';
 
 const MAX_PORTFOLIO_ITEMS = 20;
 
@@ -583,7 +584,11 @@ export class ProfessionalController {
       });
 
       // Invalider le cache du Discovery Engine pour ce portfolio
-      discoveryService.invalidatePortfolioCache(id as string);
+      try {
+        await discoveryService.invalidatePortfolioCache(id as string);
+      } catch (cacheError) {
+        console.error('[updatePortfolio] Cache invalidation failed:', cacheError);
+      }
 
       res.json({
         success: true,
@@ -591,6 +596,7 @@ export class ProfessionalController {
         data: portfolio,
       });
     } catch (error: any) {
+      console.error('[updatePortfolio] Error:', error.message, error.code);
       res.status(500).json({
         success: false,
         message: error.message || 'Erreur lors de la mise à jour du projet',
@@ -622,7 +628,9 @@ export class ProfessionalController {
       });
 
       // Invalider le cache du Discovery Engine pour ce portfolio
-      discoveryService.invalidatePortfolioCache(id as string);
+      discoveryService.invalidatePortfolioCache(id as string).catch((err: any) => {
+        console.error('[removePortfolio] Cache invalidation failed:', err);
+      });
 
       // Then delete image from Cloudinary (don't await - let it run in background)
       if (portfolioItem.imageUrl) {
@@ -664,7 +672,7 @@ export class ProfessionalController {
         where: {
           professionalId: professional.id,
           status: {
-            in: ['CONTACTED', 'ACCEPTED', 'DECLINED', 'PROPOSED'],
+            in: ['CONTACTED', 'ACCEPTED', 'DECLINED'],
           },
         },
         orderBy: { updatedAt: 'desc' },
@@ -674,6 +682,7 @@ export class ProfessionalController {
               id: true,
               projectTitle: true,
               projectSummary: true,
+              projectInsights: true,
               status: true,
               creator: {
                 select: {
@@ -735,6 +744,7 @@ export class ProfessionalController {
 
       const professional = await prisma.professional.findUnique({
         where: { userId },
+        select: { id: true, firstName: true, lastName: true },
       });
 
       if (!professional) {
@@ -752,7 +762,11 @@ export class ProfessionalController {
         include: {
           conversation: {
             include: {
-              creator: true,
+              creator: {
+                include: {
+                  user: { select: { email: true } },
+                },
+              },
             },
           },
         },
@@ -769,6 +783,33 @@ export class ProfessionalController {
         where: { id: matchId as string },
         data: { status },
       });
+
+      // Notify creator
+      const notifTitle = status === 'ACCEPTED' ? 'Mission acceptée !' : 'Mission déclinée';
+      const notifMsg = status === 'ACCEPTED'
+        ? `Un professionnel a accepté votre projet "${match.conversation.projectTitle}"`
+        : `Un professionnel a décliné votre projet "${match.conversation.projectTitle}"`;
+      await NotificationController.createCreatorNotification(
+        match.conversation.creator.id,
+        'MATCH_ACCEPTED',
+        notifTitle,
+        notifMsg,
+        `/projects`
+      );
+
+      // Send email to creator (non-blocking)
+      const creatorEmail = match.conversation.creator.user?.email;
+      if (creatorEmail) {
+        const creatorName = match.conversation.creator.companyName || 'Créateur';
+        const proName = `${professional.firstName} ${professional.lastName}`.trim() || 'Le professionnel';
+        emailService.sendMatchRespondedEmail(
+          creatorEmail,
+          creatorName,
+          proName,
+          match.conversation.projectTitle || 'Projet sans titre',
+          status === 'ACCEPTED',
+        ).catch(err => console.error('Failed to send match responded email:', err));
+      }
 
       res.json({
         success: true,
@@ -1668,22 +1709,26 @@ export class ProfessionalController {
     }
   }
 
-  // POST /api/professionals/portfolio/:portfolioId/like - Like a portfolio item
+  // POST /api/professionals/portfolio/:portfolioId/like - Like a portfolio item (pro or creator)
   async likePortfolio(req: Request, res: Response) {
     try {
       const userId = req.userId as string;
       const portfolioId = req.params.portfolioId as string;
 
+      // Resolve liker identity (professional or creator)
       const professional = await prisma.professional.findUnique({ where: { userId } });
-      if (!professional) {
+      const creator = professional ? null : await prisma.creator.findUnique({ where: { userId } });
+
+      if (!professional && !creator) {
         return res.status(404).json({ success: false, message: 'Profil non trouvé' });
       }
 
-      const like = await prisma.portfolioLike.create({
-        data: { portfolioId, professionalId: professional.id },
-      });
+      const likeData = professional
+        ? { portfolioId, professionalId: professional.id }
+        : { portfolioId, creatorId: creator!.id };
 
-      // Invalider le cache du Discovery Engine pour ce portfolio (engagement a changé)
+      const like = await prisma.portfolioLike.create({ data: likeData });
+
       discoveryService.invalidatePortfolioCache(portfolioId);
 
       // Notify the portfolio owner
@@ -1691,12 +1736,19 @@ export class ProfessionalController {
         where: { id: portfolioId },
         select: { professionalId: true, title: true },
       });
-      if (portfolio && portfolio.professionalId !== professional.id) {
+      if (portfolio && professional && portfolio.professionalId !== professional.id) {
         await NotificationController.createNotification(
           portfolio.professionalId,
           'PORTFOLIO_LIKED',
           'Nouveau like',
           `${professional.firstName} ${professional.lastName} a aimé votre projet "${portfolio.title}".`
+        );
+      } else if (portfolio && creator) {
+        await NotificationController.createNotification(
+          portfolio.professionalId,
+          'PORTFOLIO_LIKED',
+          'Nouveau like',
+          `${creator.companyName || 'Un créateur'} a aimé votre projet "${portfolio.title}".`
         );
       }
 
@@ -1709,22 +1761,25 @@ export class ProfessionalController {
     }
   }
 
-  // DELETE /api/professionals/portfolio/:portfolioId/like - Unlike a portfolio item
+  // DELETE /api/professionals/portfolio/:portfolioId/like - Unlike a portfolio item (pro or creator)
   async unlikePortfolio(req: Request, res: Response) {
     try {
       const userId = req.userId as string;
       const portfolioId = req.params.portfolioId as string;
 
       const professional = await prisma.professional.findUnique({ where: { userId } });
-      if (!professional) {
+      const creator = professional ? null : await prisma.creator.findUnique({ where: { userId } });
+
+      if (!professional && !creator) {
         return res.status(404).json({ success: false, message: 'Profil non trouvé' });
       }
 
-      await prisma.portfolioLike.deleteMany({
-        where: { portfolioId, professionalId: professional.id },
-      });
+      const whereClause = professional
+        ? { portfolioId, professionalId: professional.id }
+        : { portfolioId, creatorId: creator!.id };
 
-      // Invalider le cache du Discovery Engine pour ce portfolio (engagement a changé)
+      await prisma.portfolioLike.deleteMany({ where: whereClause });
+
       discoveryService.invalidatePortfolioCache(portfolioId);
 
       res.json({ success: true, message: 'Unlike' });
@@ -1876,24 +1931,82 @@ export class ProfessionalController {
     }
   }
 
-  // GET /api/professionals/portfolio/likes/status - Check liked status for multiple portfolios
+  // GET /api/professionals/portfolio/likes/status - Check liked status for multiple portfolios (pro or creator)
   async getLikedPortfolios(req: Request, res: Response) {
     try {
       const userId = req.userId as string;
       const ids = req.query.ids as string;
 
-      const professional = await prisma.professional.findUnique({ where: { userId } });
-      if (!professional) {
+      const portfolioIds = ids?.split(',').filter(Boolean) || [];
+      if (portfolioIds.length === 0) {
         return res.json({ success: true, data: [] });
       }
 
-      const portfolioIds = ids?.split(',').filter(Boolean) || [];
+      const professional = await prisma.professional.findUnique({ where: { userId } });
+      const creator = professional ? null : await prisma.creator.findUnique({ where: { userId } });
+
+      if (!professional && !creator) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const whereClause = professional
+        ? { professionalId: professional.id, portfolioId: { in: portfolioIds } }
+        : { creatorId: creator!.id, portfolioId: { in: portfolioIds } };
+
       const likes = await prisma.portfolioLike.findMany({
-        where: { professionalId: professional.id, portfolioId: { in: portfolioIds } },
+        where: whereClause,
         select: { portfolioId: true },
       });
 
       res.json({ success: true, data: likes.map(l => l.portfolioId) });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+    }
+  }
+
+  // GET /api/professionals/portfolio/liked-by-me - Get all portfolios liked by current user
+  async getMyLikedPortfolios(req: Request, res: Response) {
+    try {
+      const userId = req.userId as string;
+
+      const professional = await prisma.professional.findUnique({ where: { userId } });
+      const creator = professional ? null : await prisma.creator.findUnique({ where: { userId } });
+
+      if (!professional && !creator) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const whereClause = professional
+        ? { professionalId: professional.id }
+        : { creatorId: creator!.id };
+
+      const likes = await prisma.portfolioLike.findMany({
+        where: whereClause,
+        include: {
+          portfolio: {
+            include: {
+              professional: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePictureUrl: true,
+                  professions: {
+                    include: { profession: true },
+                    where: { isPrimary: true },
+                  },
+                },
+              },
+              media: { select: { id: true, url: true, type: true, thumbnailUrl: true } },
+              tags: { select: { id: true, tag: true } },
+              _count: { select: { likes: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      res.json({ success: true, data: likes.map(l => l.portfolio) });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message || 'Erreur' });
     }

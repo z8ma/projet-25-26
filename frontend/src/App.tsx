@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import { SidebarProvider } from './contexts/SidebarContext';
@@ -21,15 +21,24 @@ import SavedProfessionals from './pages/SavedProfessionals';
 import ExploreProfessionals from './pages/ExploreProfessionals';
 import PublicProfessionalProfile from './pages/PublicProfessionalProfile';
 import GoogleCallback from './pages/GoogleCallback';
+import Notifications from './pages/Notifications';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import Blog from './pages/Blog';
+import Help from './pages/Help';
+import NotFound from './pages/NotFound';
 
-// Settings Router Component
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
+
 function SettingsRouter() {
   const { user } = useAuthStore();
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (!user) return <Navigate to="/login" replace />;
   return user.role === 'PROFESSIONAL' ? <ProfessionalSettings /> : <Settings />;
 }
 
@@ -37,8 +46,6 @@ function App() {
   const { loadUser, token, user } = useAuthStore();
 
   useEffect(() => {
-    // Load user on app start if token exists
-    // This ensures we have fresh user data from the server
     if (token) {
       loadUser();
     }
@@ -47,27 +54,36 @@ function App() {
   return (
     <SidebarProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <EmailVerificationBanner />
         <Routes>
-        <Route path="/" element={(token && user) ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
-        <Route path="/professionnels" element={<ProfessionalLanding />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/auth/google/success" element={<GoogleCallback />} />
-        <Route path="/auth/google/complete" element={<GoogleCallback />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profile/creator" element={<CreatorProfile />} />
-        <Route path="/profile/professional" element={<ProfessionalProfile />} />
-        <Route path="/projects" element={<CreatorProjects />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/brainstorming" element={<Brainstorming />} />
-        <Route path="/brainstorming/:conversationId" element={<Brainstorming />} />
-        <Route path="/settings" element={<SettingsRouter />} />
-        <Route path="/favorites" element={<SavedProfessionals />} />
-        <Route path="/explore" element={<ExploreProfessionals />} />
-        <Route path="/pro/:id" element={<PublicProfessionalProfile />} />
+          <Route path="/" element={(token && user) ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+          <Route path="/professionnels" element={<ProfessionalLanding />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/auth/google/success" element={<GoogleCallback />} />
+          <Route path="/auth/google/complete" element={<GoogleCallback />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile/creator" element={<CreatorProfile />} />
+          <Route path="/profile/professional" element={<ProfessionalProfile />} />
+          <Route path="/projects" element={<CreatorProjects />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/brainstorming" element={<Brainstorming />} />
+          <Route path="/brainstorming/:conversationId" element={<Brainstorming />} />
+          <Route path="/settings" element={<SettingsRouter />} />
+          <Route path="/favorites" element={<SavedProfessionals />} />
+          <Route path="/explore" element={<ExploreProfessionals />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/pro/:id" element={<PublicProfessionalProfile />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </SidebarProvider>

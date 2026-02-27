@@ -61,6 +61,16 @@ export const authApi = {
     const response = await api.get('/api/auth/me');
     return response.data;
   },
+
+  forgotPassword: async (email: string) => {
+    const response = await api.post('/api/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  resetPassword: async (token: string, password: string) => {
+    const response = await api.post('/api/auth/reset-password', { token, password });
+    return response.data;
+  },
 };
 
 // Creator API
@@ -325,6 +335,11 @@ export const professionalApi = {
     return response.data;
   },
 
+  getMyLikedPortfolios: async () => {
+    const response = await api.get('/api/professionals/portfolio/liked-by-me');
+    return response.data;
+  },
+
   // Portfolio Comments
   getPortfolioComments: async (portfolioId: string) => {
     const response = await api.get(`/api/professionals/portfolio/${portfolioId}/comments`);
@@ -383,6 +398,14 @@ export const aiApi = {
     const response = await api.put(`/api/ai/conversations/${conversationId}/edit-message`, data);
     return response.data;
   },
+  rateMessage: async (conversationId: string, data: { messageIndex: number; rating: 'UP' | 'DOWN' }) => {
+    const response = await api.post(`/api/ai/conversations/${conversationId}/message-feedback`, data);
+    return response.data;
+  },
+  rateSession: async (conversationId: string, data: { rating: 'POOR' | 'GOOD' | 'EXCELLENT' }) => {
+    const response = await api.post(`/api/ai/conversations/${conversationId}/session-rating`, data);
+    return response.data;
+  },
 };
 
 // Matching API
@@ -404,6 +427,11 @@ export const matchingApi = {
 
   updateProjectStatus: async (matchId: string, data: { projectStatus: string }) => {
     const response = await api.put(`/api/matching/matches/${matchId}/project-status`, data);
+    return response.data;
+  },
+
+  creatorUpdateProjectStatus: async (matchId: string, data: { projectStatus: string }) => {
+    const response = await api.put(`/api/matching/matches/${matchId}/creator-project-status`, data);
     return response.data;
   },
 
@@ -461,6 +489,11 @@ export const subscriptionApi = {
 
   createCheckout: async (data: { planId: string; billingCycle: 'monthly' | 'yearly' }) => {
     const response = await api.post('/api/subscriptions/create-checkout', data);
+    return response.data;
+  },
+
+  upgradeSubscription: async (data: { planId: string; billingCycle: 'monthly' | 'yearly' }) => {
+    const response = await api.post('/api/subscriptions/upgrade', data);
     return response.data;
   },
 

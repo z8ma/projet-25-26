@@ -20,20 +20,33 @@ export class SubscriptionController {
         orderBy: { createdAt: 'desc' },
       });
 
-      // If no subscription, return default free tier
+      // If no subscription, return free tier with real usage calculated from conversations
       if (!subscription) {
+        const creator = await prisma.creator.findUnique({ where: { userId } });
+        let aiCreditsUsed = 0;
+        let projectsUsed = 0;
+        if (creator) {
+          const conversations = await prisma.aiConversation.findMany({
+            where: { creatorId: creator.id },
+            select: { aiCreditsUsed: true },
+          });
+          aiCreditsUsed = conversations.reduce((sum, c) => sum + (c.aiCreditsUsed || 0), 0);
+          projectsUsed = conversations.length;
+        }
+        const FREE_CREDITS = 50;
+        const FREE_PROJECTS = 3;
         return res.json({
           success: true,
           data: {
             plan: {
               name: 'Free',
-              aiCreditsMonth: 50,
-              maxProjectsMonth: 3,
+              aiCreditsMonth: FREE_CREDITS,
+              maxProjectsMonth: FREE_PROJECTS,
             },
-            aiCreditsUsed: 0,
-            aiCreditsRemaining: 50,
-            projectsUsed: 0,
-            projectsRemaining: 3,
+            aiCreditsUsed,
+            aiCreditsRemaining: Math.max(0, FREE_CREDITS - aiCreditsUsed),
+            projectsUsed,
+            projectsRemaining: Math.max(0, FREE_PROJECTS - projectsUsed),
             isFreeTier: true,
           },
         });
@@ -129,6 +142,25 @@ export class SubscriptionController {
         return res.status(404).json({
           success: false,
           message: 'Utilisateur non trouvé',
+        });
+      }
+
+      // Block if user already has an active subscription
+      const activeSub = await prisma.subscription.findFirst({
+        where: { userId, status: 'ACTIVE' },
+      });
+      if (activeSub) {
+        if (activeSub.planId === planId) {
+          return res.status(400).json({
+            success: false,
+            message: 'Tu es déjà abonné à ce plan',
+            alreadySubscribed: true,
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: 'Tu as déjà un abonnement actif. Utilise la mise à niveau pour changer de plan.',
+          hasActiveSub: true,
         });
       }
 
@@ -231,6 +263,74 @@ export class SubscriptionController {
     }
   }
 
+  // POST /api/subscriptions/upgrade - Upgrade/downgrade to another plan with proration
+  async upgradeSubscription(req: Request, res: Response) {
+    try {
+      const userId = req.userId as string;
+      const { planId, billingCycle = 'monthly' } = req.body;
+
+      if (!planId) {
+        return res.status(400).json({ success: false, message: 'Plan ID requis' });
+      }
+
+      // Get current active subscription
+      const currentSub = await prisma.subscription.findFirst({
+        where: { userId, status: 'ACTIVE' },
+        include: { plan: true },
+      });
+
+      if (!currentSub) {
+        return res.status(404).json({ success: false, message: 'Aucun abonnement actif trouvé' });
+      }
+
+      if (currentSub.planId === planId) {
+        return res.status(400).json({ success: false, message: 'Tu es déjà sur ce plan' });
+      }
+
+      if (!currentSub.stripeSubscriptionId) {
+        return res.status(400).json({ success: false, message: 'Abonnement Stripe non trouvé' });
+      }
+
+      // Get new plan
+      const newPlan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
+      if (!newPlan) {
+        return res.status(404).json({ success: false, message: 'Plan non trouvé' });
+      }
+
+      const newPriceId = billingCycle === 'yearly'
+        ? newPlan.stripePriceIdYearly
+        : newPlan.stripePriceIdMonthly;
+
+      if (!newPriceId) {
+        return res.status(400).json({ success: false, message: 'Ce plan n\'est pas configuré pour les paiements' });
+      }
+
+      // Retrieve current Stripe subscription to get item ID
+      const stripeSubscription = await stripe.subscriptions.retrieve(currentSub.stripeSubscriptionId);
+      const itemId = stripeSubscription.items.data[0].id;
+
+      // Update subscription on Stripe — proration is automatic
+      await stripe.subscriptions.update(currentSub.stripeSubscriptionId, {
+        items: [{ id: itemId, price: newPriceId }],
+        proration_behavior: 'always_invoice',
+      });
+
+      // Update local DB immediately with new plan
+      await prisma.subscription.update({
+        where: { id: currentSub.id },
+        data: { planId, billingCycle },
+      });
+
+      res.json({ success: true, message: 'Abonnement mis à jour avec succès' });
+    } catch (error: any) {
+      console.error('Upgrade error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Erreur lors de la mise à niveau',
+      });
+    }
+  }
+
   // POST /api/subscriptions/cancel - Cancel subscription
   async cancelSubscription(req: Request, res: Response) {
     try {
@@ -315,6 +415,8 @@ export class SubscriptionController {
 
   // Helper: Increment AI credits used for a user
   static async useAiCredits(userId: string, amount: number = 1): Promise<boolean> {
+    const FREE_CREDITS = 50;
+
     try {
       const subscription = await prisma.subscription.findFirst({
         where: {
@@ -326,13 +428,25 @@ export class SubscriptionController {
         },
       });
 
-      // No subscription = free tier with 50 credits
+      // No subscription = free tier — enforce 50-credit limit
       if (!subscription) {
+        const creator = await prisma.creator.findUnique({ where: { userId } });
+        if (!creator) return true; // no profile yet, allow
+
+        const conversations = await prisma.aiConversation.findMany({
+          where: { creatorId: creator.id },
+          select: { aiCreditsUsed: true },
+        });
+        const creditsUsed = conversations.reduce((sum, c) => sum + (c.aiCreditsUsed || 0), 0);
+
+        if (creditsUsed + amount > FREE_CREDITS) {
+          return false;
+        }
         return true;
       }
 
       // Check if user has credits remaining
-      if (subscription.aiCreditsUsed >= subscription.plan.aiCreditsMonth) {
+      if (subscription.aiCreditsUsed + amount > subscription.plan.aiCreditsMonth) {
         return false;
       }
 

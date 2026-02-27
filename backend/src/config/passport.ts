@@ -22,10 +22,13 @@ export function configurePassport() {
   });
 
   // Google OAuth Strategy
-  const clientID = process.env.GOOGLE_CLIENT_ID || '580794838157-jss4vag7qnc266p1btsctnn3psn86bbc.apps.googleusercontent.com';
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
-  console.log('[Passport Strategy] Using clientID:', clientID.substring(0, 30) + '...');
-  console.log('[Passport Strategy] Using clientSecret:', clientSecret.substring(0, 15) + '...');
+  const clientID = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientID || !clientSecret) {
+    console.warn('[Passport Config] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set - Google OAuth disabled');
+    return;
+  }
 
   passport.use(
     new GoogleStrategy(

@@ -19,4 +19,8 @@ router.put('/conversations/:id/edit-message', aiController.editLastMessage.bind(
 router.put('/conversations/:id/title', aiController.updateTitle.bind(aiController));
 router.put('/conversations/:id/complete', aiController.completeConversation.bind(aiController));
 
+// Feedback
+router.post('/conversations/:id/message-feedback', aiController.rateMessage.bind(aiController));
+router.post('/conversations/:id/session-rating', aiController.rateSession.bind(aiController));
+
 export default router;

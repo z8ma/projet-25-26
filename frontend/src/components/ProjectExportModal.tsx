@@ -35,6 +35,22 @@ interface Project {
     style?: { value: string };
     target?: { value: string };
     objective?: { value: string };
+    sections?: {
+      contextAndIntention?: string;
+      dnaAndValues?: string;
+      artisticDirection?: string;
+      targetAndUsage?: string;
+      budgetAndConstraints?: string;
+      idealCreativeProfile?: string;
+      keywordsAndVision?: string;
+    };
+    keywords?: string[];
+    visualReferences?: {
+      creativeDirection?: string;
+      analyzedStyles?: string[];
+      colorPalette?: string[];
+      visualMood?: string;
+    };
   };
   matches: Match[];
   messages: Message[];
@@ -189,6 +205,57 @@ export default function ProjectExportModal({ project, onClose }: ProjectExportMo
       color: #9ca3af;
       font-size: 12px;
     }
+    .section-narrative {
+      margin-bottom: 20px;
+    }
+    .section-narrative h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f97316;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+    .section-narrative p {
+      color: #374151;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    .keywords-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .keyword-tag {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #c2410c;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .visual-ref-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .visual-ref-item {
+      background: #f9fafb;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .color-dot {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+      border: 1px solid #e5e7eb;
+    }
     @media print {
       body { padding: 20px; }
       .no-print { display: none; }
@@ -210,13 +277,60 @@ export default function ProjectExportModal({ project, onClose }: ProjectExportMo
 
   ${project.projectSummary ? `
   <div class="section">
-    <h2>Résumé du projet</h2>
+    <h2>Synthèse du projet</h2>
     <div class="summary-box">
       ${project.projectSummary}
     </div>
   </div>
   ` : ''}
 
+  ${project.projectInsights?.sections ? `
+  <div class="section">
+    <h2>Brief créatif complet</h2>
+    ${project.projectInsights.sections.contextAndIntention ? `
+    <div class="section-narrative">
+      <h3>Contexte & Intention</h3>
+      <p>${project.projectInsights.sections.contextAndIntention}</p>
+    </div>
+    ` : ''}
+    ${project.projectInsights.sections.dnaAndValues ? `
+    <div class="section-narrative">
+      <h3>ADN & Valeurs</h3>
+      <p>${project.projectInsights.sections.dnaAndValues}</p>
+    </div>
+    ` : ''}
+    ${project.projectInsights.sections.artisticDirection ? `
+    <div class="section-narrative">
+      <h3>Direction artistique</h3>
+      <p>${project.projectInsights.sections.artisticDirection}</p>
+    </div>
+    ` : ''}
+    ${project.projectInsights.sections.targetAndUsage ? `
+    <div class="section-narrative">
+      <h3>Cible & Usage</h3>
+      <p>${project.projectInsights.sections.targetAndUsage}</p>
+    </div>
+    ` : ''}
+    ${project.projectInsights.sections.budgetAndConstraints ? `
+    <div class="section-narrative">
+      <h3>Budget & Contraintes</h3>
+      <p>${project.projectInsights.sections.budgetAndConstraints}</p>
+    </div>
+    ` : ''}
+    ${project.projectInsights.sections.idealCreativeProfile ? `
+    <div class="section-narrative">
+      <h3>Profil créatif idéal</h3>
+      <p>${project.projectInsights.sections.idealCreativeProfile}</p>
+    </div>
+    ` : ''}
+    ${project.projectInsights.sections.keywordsAndVision ? `
+    <div class="section-narrative">
+      <h3>Mots-clés & Vision</h3>
+      <p>${project.projectInsights.sections.keywordsAndVision}</p>
+    </div>
+    ` : ''}
+  </div>
+  ` : `
   <div class="section">
     <h2>Détails du brief</h2>
     <div class="insight-grid">
@@ -256,6 +370,50 @@ export default function ProjectExportModal({ project, onClose }: ProjectExportMo
       </div>
     </div>
   </div>
+  `}
+
+  ${(project.projectInsights?.keywords?.length ?? 0) > 0 ? `
+  <div class="section">
+    <h2>Mots-clés</h2>
+    <div class="keywords-list">
+      ${(project.projectInsights?.keywords ?? []).map((kw: string) => `<span class="keyword-tag">${kw}</span>`).join('')}
+    </div>
+  </div>
+  ` : ''}
+
+  ${project.projectInsights?.visualReferences ? `
+  <div class="section">
+    <h2>Références visuelles</h2>
+    <div class="visual-ref-grid">
+      ${project.projectInsights.visualReferences.creativeDirection ? `
+      <div class="visual-ref-item" style="grid-column: span 2;">
+        <div class="insight-label">Direction créative</div>
+        <div class="insight-value">${project.projectInsights.visualReferences.creativeDirection}</div>
+      </div>
+      ` : ''}
+      ${project.projectInsights.visualReferences.visualMood ? `
+      <div class="visual-ref-item">
+        <div class="insight-label">Ambiance visuelle</div>
+        <div class="insight-value">${project.projectInsights.visualReferences.visualMood}</div>
+      </div>
+      ` : ''}
+      ${(project.projectInsights.visualReferences.analyzedStyles?.length ?? 0) > 0 ? `
+      <div class="visual-ref-item">
+        <div class="insight-label">Styles détectés</div>
+        <div class="insight-value">${(project.projectInsights.visualReferences.analyzedStyles ?? []).join(', ')}</div>
+      </div>
+      ` : ''}
+      ${(project.projectInsights.visualReferences.colorPalette?.length ?? 0) > 0 ? `
+      <div class="visual-ref-item" style="grid-column: span 2;">
+        <div class="insight-label">Palette de couleurs</div>
+        <div class="insight-value">
+          ${(project.projectInsights.visualReferences.colorPalette ?? []).map((c: string) => `<span class="color-dot" style="background:${c}"></span>${c}`).join(' &nbsp; ')}
+        </div>
+      </div>
+      ` : ''}
+    </div>
+  </div>
+  ` : ''}
 
   ${project.matches.length > 0 ? `
   <div class="section">

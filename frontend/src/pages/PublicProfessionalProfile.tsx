@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { professionalApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 import { PortfolioViewModal } from '../components/professional/PortfolioTab/PortfolioViewModal';
 import ExternalLinkWarning from '../components/ExternalLinkWarning';
@@ -113,7 +113,13 @@ export default function PublicProfessionalProfile() {
   const skillsAnimation = useScrollAnimation([loading]);
   const softwareAnimation = useScrollAnimation([loading]);
 
-  useDocumentTitle(professional ? `${professional.firstName} ${professional.lastName} | JUNY` : 'Profil | JUNY');
+  useDocumentMeta({
+    title: professional ? `${professional.firstName} ${professional.lastName}` : undefined,
+    description: professional?.bio ? professional.bio.slice(0, 160) : undefined,
+    image: professional?.profilePictureUrl || undefined,
+    url: professional ? `/pro/${professional.id}` : undefined,
+    type: 'profile',
+  });
 
   // Close contact menu on outside click
   useEffect(() => {
@@ -348,12 +354,12 @@ export default function PublicProfessionalProfile() {
         {/* Banner + Profile Card */}
         <div
           ref={headerAnimation.ref}
-          className={`bg-white rounded-2xl border border-gray-200 transition-all duration-700 ${
+          className={`space-y-4 transition-all duration-700 ${
             headerAnimation.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
           }`}
         >
           {/* Banner */}
-          <div className="relative h-48 md:h-56 rounded-t-2xl overflow-hidden">
+          <div className="relative w-full aspect-[3/1] max-h-48 rounded-2xl overflow-hidden">
             {professional.bannerUrl ? (
               <img src={professional.bannerUrl} alt="Bannière" className="w-full h-full object-cover" />
             ) : (
@@ -364,10 +370,11 @@ export default function PublicProfessionalProfile() {
           </div>
 
           {/* Profile Info */}
-          <div className="px-6 py-5 bg-white">
+          <div className="bg-white rounded-2xl border border-gray-200">
+          <div className="px-6 py-5">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
               {/* Profile Picture */}
-              <div className="relative -mt-20 sm:-mt-16">
+              <div className="relative">
                 {professional.profilePictureUrl ? (
                   <img src={professional.profilePictureUrl} alt="Profile" className="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-white shadow-xl" />
                 ) : (
@@ -636,6 +643,7 @@ export default function PublicProfessionalProfile() {
                 ))}
               </div>
             )}
+          </div>
           </div>
         </div>
 

@@ -30,6 +30,10 @@ model User {
   emailVerificationToken    String?   @unique @map("email_verification_token")
   emailVerificationExpiry   DateTime? @map("email_verification_expiry")
 
+  // Password reset
+  passwordResetToken   String?   @unique @map("password_reset_token")
+  passwordResetExpires DateTime? @map("password_reset_expires")
+
   // Relations
   creator           Creator?
   professional      Professional?
@@ -136,6 +140,7 @@ model Creator {
   conversations       AiConversation[]
   notifications       CreatorNotification[]
   savedProfessionals  SavedProfessional[]
+  portfolioLikes      PortfolioLike[]
 
   @@map("creators")
 }
@@ -370,17 +375,35 @@ model AiConversation {
   messages        Json?
   projectInsights Json?               @map("project_insights")
   aiCreditsUsed   Int                 @default(0) @map("ai_credits_used")
+  sessionRating   String?             @map("session_rating") // 'POOR' | 'GOOD' | 'EXCELLENT'
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
 
   // Relations
-  creator        Creator             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  documents      GeneratedDocument[]
-  matches        Match[]
+  creator          Creator             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  documents        GeneratedDocument[]
+  matches          Match[]
+  messageFeedbacks MessageFeedback[]
 
   @@index([creatorId])
   @@index([status])
   @@map("ai_conversations")
+}
+
+// Message-level feedback for training data
+model MessageFeedback {
+  id             String         @id @default(uuid())
+  conversationId String         @map("conversation_id")
+  messageIndex   Int            @map("message_index")
+  rating         String         // 'UP' | 'DOWN'
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, messageIndex])
+  @@index([conversationId])
+  @@index([rating])
+  @@map("message_feedbacks")
 }
 
 enum ConversationStatus {
@@ -631,16 +654,20 @@ enum ProfileViewSource {
 model PortfolioLike {
   id             String   @id @default(uuid())
   portfolioId    String   @map("portfolio_id")
-  professionalId String   @map("professional_id") // The pro who liked
+  professionalId String?  @map("professional_id") // The pro who liked (null if creator)
+  creatorId      String?  @map("creator_id")      // The creator who liked (null if pro)
   createdAt      DateTime @default(now()) @map("created_at")
 
   // Relations
   portfolio    Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  professional Professional? @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  creator      Creator?      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@unique([portfolioId, professionalId])
+  @@unique([portfolioId, creatorId])
   @@index([portfolioId])
   @@index([professionalId])
+  @@index([creatorId])
   @@index([createdAt])
   @@map("portfolio_likes")
 }
