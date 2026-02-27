@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { subscriptionApi } from '../services/api';
 import PublicNavbar from '../components/PublicNavbar';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
@@ -40,10 +40,42 @@ export default function LandingPage() {
 
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [showStickyCTA, setShowStickyCTA] = useState(false);
+  const [statsStarted, setStatsStarted] = useState(false);
+  const [statsPct, setStatsPct] = useState(0);
+  const [statsMatchs, setStatsMatchs] = useState(0);
+  const statsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     subscriptionApi.getPlans().then(r => { if (r.success) setPlans(r.data); }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const handleScroll = () => setShowStickyCTA(window.scrollY > 500);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = statsRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !statsStarted) {
+        setStatsStarted(true);
+        let pct = 0;
+        const iv = setInterval(() => {
+          pct = Math.min(pct + 3, 97);
+          setStatsPct(pct);
+          if (pct >= 97) clearInterval(iv);
+        }, 18);
+        setTimeout(() => setStatsMatchs(1), 300);
+        setTimeout(() => setStatsMatchs(2), 700);
+        setTimeout(() => setStatsMatchs(3), 1000);
+      }
+    }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [statsStarted]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -519,14 +551,14 @@ export default function LandingPage() {
           </div>
 
           {/* Barre de chiffres */}
-          <div className="mt-12 grid grid-cols-3 gap-4 animate-on-scroll opacity-0">
+          <div ref={statsRef} className="mt-12 grid grid-cols-3 gap-4 animate-on-scroll opacity-0">
             {[
-              { value: '−97%', label: 'de temps de recherche' },
-              { value: '3 matchs', label: 'en moins de 5 minutes' },
+              { value: `−${statsPct}%`, label: 'de temps de recherche' },
+              { value: `${statsMatchs} match${statsMatchs !== 1 ? 's' : ''}`, label: 'en moins de 5 minutes' },
               { value: '0€', label: 'de commission sur vos projets' },
             ].map(({ value, label }) => (
-              <div key={value} className="text-center p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                <p className="text-3xl font-black text-gray-900 mb-1">{value}</p>
+              <div key={label} className="text-center p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                <p className="text-3xl font-black text-gray-900 mb-1 tabular-nums">{value}</p>
                 <p className="text-sm text-gray-500">{label}</p>
               </div>
             ))}
@@ -775,8 +807,8 @@ export default function LandingPage() {
             Votre meilleur projet commence maintenant
           </h2>
           <p className="text-xl text-white/90 mb-8 animate-on-scroll opacity-0">
-            500+ créateurs trouvent leur match en 5 minutes sur JUNY.<br className="hidden sm:block" />
-            À vous de jouer.
+            Décrivez votre projet, l'IA fait le reste.<br className="hidden sm:block" />
+            Vos 3 matchs parfaits en 5 minutes.
           </p>
           <Link
             to="/register"
@@ -797,10 +829,27 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="col-span-2 md:col-span-1">
-              <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-primary-400 to-purple-400 bg-clip-text text-transparent">JUNY</h3>
-              <p className="text-sm leading-relaxed">
+              <Link to="/" className="flex items-center gap-2.5 mb-4">
+                <img src="/logo.png" alt="JUNY" style={{ height: '28px', width: 'auto', filter: 'brightness(0) invert(1)' }} />
+                <span className="text-xl font-bold text-white">JUNY</span>
+              </Link>
+              <p className="text-sm leading-relaxed mb-5">
                 La plateforme qui connecte les entreprises avec les meilleurs créatifs grâce à l'IA.
               </p>
+              {/* Réseaux sociaux */}
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://www.instagram.com/juny.ia/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  aria-label="Instagram"
+                >
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+                  </svg>
+                </a>
+              </div>
             </div>
 
             <div>
@@ -809,6 +858,7 @@ export default function LandingPage() {
                 <li><a href="#solutions" className="hover:text-primary-400 transition-colors">Fonctionnalités</a></li>
                 <li><a href="#how-it-works" className="hover:text-primary-400 transition-colors">Comment ça marche</a></li>
                 <li><Link to="/pricing" className="hover:text-primary-400 transition-colors">Tarifs</Link></li>
+                <li><Link to="/blog" className="hover:text-primary-400 transition-colors">Blog</Link></li>
               </ul>
             </div>
 
@@ -818,15 +868,15 @@ export default function LandingPage() {
                 <li><Link to="/register" className="hover:text-primary-400 transition-colors">Créer un compte</Link></li>
                 <li><Link to="/professionnels" className="hover:text-primary-400 transition-colors">Espace créatifs</Link></li>
                 <li><Link to="/login" className="hover:text-primary-400 transition-colors">Se connecter</Link></li>
+                <li><Link to="/contact" className="hover:text-primary-400 transition-colors">Contact</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="text-white text-sm font-semibold mb-4">Légal</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-primary-400 transition-colors">Mentions légales</a></li>
-                <li><a href="#" className="hover:text-primary-400 transition-colors">Confidentialité</a></li>
-                <li><a href="#" className="hover:text-primary-400 transition-colors">CGU</a></li>
+                <li><Link to="/about" className="hover:text-primary-400 transition-colors">À propos</Link></li>
+                <li><Link to="/help" className="hover:text-primary-400 transition-colors">Aide</Link></li>
               </ul>
             </div>
           </div>
@@ -837,6 +887,18 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* ── Sticky CTA mobile ──────────────────────────────────── */}
+      <div className={`fixed bottom-0 left-0 right-0 z-50 md:hidden transition-transform duration-300 ${showStickyCTA ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div className="bg-white border-t border-gray-200 px-4 py-3 shadow-2xl">
+          <Link
+            to="/register"
+            className="block text-center px-6 py-3.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-bold text-base"
+          >
+            Commencer gratuitement →
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

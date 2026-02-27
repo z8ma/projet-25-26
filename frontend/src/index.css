@@ -5,6 +5,17 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .animate-on-scroll { opacity: 1 !important; transform: none !important; }
+  .fade-in-up-blur, .fade-in-up { opacity: 1 !important; transform: none !important; }
+}
+
 /* Dark mode configuration */
 @variant dark (&:where(.dark, .dark *));
 
