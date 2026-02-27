@@ -15,14 +15,9 @@ interface Conversation {
   matches?: Match[];
 }
 
-interface MessageConversation {
-  id: string;
-}
-
 interface OnboardingChecklistProps {
   creatorProfile: CreatorProfile | null;
   conversations: Conversation[];
-  messageConversations: MessageConversation[];
   loading?: boolean;
 }
 
@@ -39,7 +34,6 @@ interface ChecklistItem {
 export default function OnboardingChecklist({
   creatorProfile,
   conversations,
-  messageConversations,
   loading,
 }: OnboardingChecklistProps) {
   const hasProfile =

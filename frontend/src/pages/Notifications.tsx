@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { notificationApi } from '../services/api';
@@ -19,7 +19,7 @@ interface Notification {
 type Filter = 'all' | 'unread';
 
 function getNotificationIcon(type: string) {
-  const icons: Record<string, { bg: string; icon: JSX.Element }> = {
+  const icons: Record<string, { bg: string; icon: React.ReactElement }> = {
     MATCH_ACCEPTED: {
       bg: 'bg-green-100',
       icon: (

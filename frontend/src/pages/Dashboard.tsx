@@ -627,7 +627,6 @@ export default function Dashboard() {
           <OnboardingChecklist
             creatorProfile={creatorProfile}
             conversations={conversations}
-            messageConversations={messageConversations}
             loading={loading}
           />
         </div>
