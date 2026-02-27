@@ -41,10 +41,10 @@ export default function LandingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [showStickyCTA, setShowStickyCTA] = useState(false);
-  const [statsStarted, setStatsStarted] = useState(false);
   const [statsPct, setStatsPct] = useState(0);
   const [statsMatchs, setStatsMatchs] = useState(0);
   const statsRef = useRef<HTMLDivElement>(null);
+  const statsStartedRef = useRef(false);
 
   useEffect(() => {
     subscriptionApi.getPlans().then(r => { if (r.success) setPlans(r.data); }).catch(() => {});
@@ -60,8 +60,8 @@ export default function LandingPage() {
     const el = statsRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !statsStarted) {
-        setStatsStarted(true);
+      if (entry.isIntersecting && !statsStartedRef.current) {
+        statsStartedRef.current = true;
         let pct = 0;
         const iv = setInterval(() => {
           pct = Math.min(pct + 3, 97);
@@ -72,10 +72,10 @@ export default function LandingPage() {
         setTimeout(() => setStatsMatchs(2), 700);
         setTimeout(() => setStatsMatchs(3), 1000);
       }
-    }, { threshold: 0.5 });
+    }, { threshold: 0.15 });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [statsStarted]);
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
