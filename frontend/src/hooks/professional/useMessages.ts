@@ -14,7 +14,7 @@ export function useMessages() {
     try {
       const response = await matchingApi.getMessages(conv.id);
       if (response.success) {
-        setChatMessages(response.data.messages);
+        setChatMessages(response.data || []);
         // Update local state to mark as read
         setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unreadCount: 0 } : c));
         // Scroll to bottom

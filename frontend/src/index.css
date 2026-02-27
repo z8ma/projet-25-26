@@ -1,6 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* Dark mode configuration */
 @variant dark (&:where(.dark, .dark *));
 
@@ -877,6 +881,24 @@ img {
     #fbbf24,
     #fb923c,
     #ff7900
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: logo-gradient 4s ease infinite;
+}
+
+.logo-gradient-purple {
+  background: linear-gradient(
+    90deg,
+    #7c3aed,
+    #9333ea,
+    #a855f7,
+    #c084fc,
+    #a855f7,
+    #9333ea,
+    #7c3aed
   );
   background-size: 200% auto;
   background-clip: text;

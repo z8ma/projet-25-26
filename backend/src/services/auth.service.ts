@@ -149,6 +149,8 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        emailVerified: true,
+        googleId: true,
         createdAt: true,
         updatedAt: true,
         creator: {
@@ -316,6 +318,66 @@ export class AuthService {
     await emailService.sendVerificationEmail(user.email, verificationToken);
 
     return { message: 'Email de vérification renvoyé avec succès' };
+  }
+
+  // Forgot password — generate reset token and send email
+  async forgotPassword(email: string) {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, passwordHash: true },
+    });
+
+    // Always respond with success to avoid email enumeration
+    if (!user || !user.passwordHash) {
+      return { message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' };
+    }
+
+    const resetToken = randomUUID();
+    const resetExpiry = new Date();
+    resetExpiry.setHours(resetExpiry.getHours() + 1);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: resetToken,
+        passwordResetExpires: resetExpiry,
+      },
+    });
+
+    emailService.sendPasswordResetEmail(user.email, resetToken).catch(err => {
+      console.error('Failed to send password reset email:', err);
+    });
+
+    return { message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' };
+  }
+
+  // Reset password with token
+  async resetPassword(token: string, newPassword: string) {
+    const user = await prisma.user.findUnique({
+      where: { passwordResetToken: token },
+      select: { id: true, passwordResetExpires: true },
+    });
+
+    if (!user) {
+      throw new Error('Lien de réinitialisation invalide ou déjà utilisé.');
+    }
+
+    if (user.passwordResetExpires && user.passwordResetExpires < new Date()) {
+      throw new Error('Ce lien de réinitialisation a expiré. Veuillez en demander un nouveau.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    return { message: 'Mot de passe réinitialisé avec succès.' };
   }
 
   // Complete Google signup (for new Google users)
