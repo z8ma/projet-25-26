@@ -11,9 +11,10 @@ interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
   maxFiles?: number;
   maxSize?: number; // in MB
+  compact?: boolean; // icon-only mode for inline input bar
 }
 
-export default function FileUpload({ onFilesSelected, maxFiles = 5, maxSize = 15 }: FileUploadProps) {
+export default function FileUpload({ onFilesSelected, maxFiles = 5, maxSize = 15, compact = false }: FileUploadProps) {
   const [files, setFiles] = useState<FilePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string>('');
@@ -126,6 +127,49 @@ export default function FileUpload({ onFilesSelected, maxFiles = 5, maxSize = 15
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
+
+  // Compact mode: just an icon button + previews strip
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="flex-shrink-0 p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 rounded-xl transition-colors"
+          title="Ajouter des fichiers (images, PDF)"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+          </svg>
+        </button>
+        {files.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {files.map((file, index) => (
+              <div key={index} className="relative group">
+                {file.type === 'image' ? (
+                  <img src={file.preview} alt={file.file.name} className="w-8 h-8 object-cover rounded-lg border border-gray-200" />
+                ) : (
+                  <div className="w-8 h-8 bg-red-50 border border-red-200 rounded-lg flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-red-500">PDF</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => removeFile(index)}
+                  className="absolute -top-1 -right-1 w-4 h-4 bg-gray-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <input ref={fileInputRef} type="file" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" onChange={handleFileInput} className="hidden" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

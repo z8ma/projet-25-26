@@ -11,7 +11,7 @@ import ImageLightbox from '../components/ImageLightbox';
 import MessageAttachments from '../components/MessageAttachments';
 
 export default function Brainstorming() {
-  useDocumentTitle('Brainstorming IA | JUNY');
+  useDocumentTitle('JUNY AI | JUNY');
 
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -65,14 +65,37 @@ export default function Brainstorming() {
   const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
   const [editMessageContent, setEditMessageContent] = useState('');
 
+  // Creating conversation state (for button animation)
+  const [creatingConversation, setCreatingConversation] = useState(false);
+
+  // Pending new conversation — show chat UI but only create on first message send
+  const [pendingNewConversation, setPendingNewConversation] = useState(false);
+
+  // Upgrade modal
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
   // File upload states
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  // Check if user has paid subscription (Starter or higher)
-  const hasPaidSubscription = subscription?.plan?.name === 'Starter' || subscription?.plan?.name === 'Premium';
+  // Feedback states
+  const [messageFeedbacks, setMessageFeedbacks] = useState<Record<number, 'UP' | 'DOWN'>>({});
+  const [showSessionRating, setShowSessionRating] = useState(false);
+  const [sessionRated, setSessionRated] = useState(false);
+
+  // Match results reveal animation
+  const [showMatchResults, setShowMatchResults] = useState(false);
+  const [matchResultsRevealed, setMatchResultsRevealed] = useState(false);
+
+  // Right panel tab (Brief or Matchs)
+  const [rightPanelTab, setRightPanelTab] = useState<'brief' | 'matches'>('brief');
+
+  // Subscription helpers (null = still loading)
+  const isFreeTier: boolean | null = subscription ? (subscription.isFreeTier ?? false) : null;
+  const hasPaidSubscription = isFreeTier === false;
+  const hasReachedFreeLimit = isFreeTier === true && conversations.length >= 1;
 
   useEffect(() => {
     if (!user || user.role !== 'CREATOR') {
@@ -92,6 +115,16 @@ export default function Brainstorming() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Trigger score ring animation when match results modal opens
+  useEffect(() => {
+    if (showMatchResults) {
+      const t = setTimeout(() => setMatchResultsRevealed(true), 100);
+      return () => clearTimeout(t);
+    } else {
+      setMatchResultsRevealed(false);
+    }
+  }, [showMatchResults]);
 
   // Load subscription info
   useEffect(() => {
@@ -128,12 +161,16 @@ export default function Brainstorming() {
     try {
       const response = await aiApi.getConversation(id);
       if (response.success) {
+        setPendingNewConversation(false);
         setCurrentConversation(response.data);
         setMessages(response.data.messages || []);
+        setRightPanelTab('brief');
 
         // Load matches if they exist
         if (response.data.matches && response.data.matches.length > 0) {
           setMatches(response.data.matches);
+        } else {
+          setMatches([]);
         }
       }
     } catch (err: any) {
@@ -142,7 +179,12 @@ export default function Brainstorming() {
   };
 
   const createNewConversation = async () => {
+    if (hasReachedFreeLimit) {
+      setShowUpgradeModal(true);
+      return;
+    }
     try {
+      setCreatingConversation(true);
       const response = await aiApi.createConversation({
         projectTitle: 'Nouveau projet',
       });
@@ -150,9 +192,17 @@ export default function Brainstorming() {
         await loadConversations();
         navigate(`/brainstorming/${response.data.id}`);
         setShowConversationsSidebar(false);
+      } else if ((response as any).requiresUpgrade) {
+        setShowUpgradeModal(true);
       }
     } catch (err: any) {
-      console.error('Error creating conversation:', err);
+      if (err?.response?.data?.requiresUpgrade) {
+        setShowUpgradeModal(true);
+      } else {
+        console.error('Error creating conversation:', err);
+      }
+    } finally {
+      setCreatingConversation(false);
     }
   };
 
@@ -206,11 +256,46 @@ export default function Brainstorming() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputMessage.trim() && selectedFiles.length === 0) || !currentConversation || loading) return;
+    if ((!inputMessage.trim() && selectedFiles.length === 0) || (!currentConversation && !pendingNewConversation) || loading) return;
 
     setLoading(true);
     const userMessage = inputMessage;
     setInputMessage('');
+
+    // If pending new conversation, create it now before sending the message
+    let conversationToUse = currentConversation;
+    if (pendingNewConversation && !currentConversation) {
+      try {
+        const createResponse = await aiApi.createConversation({ projectTitle: 'Nouveau projet' });
+        if (!createResponse.success) {
+          if ((createResponse as any).requiresUpgrade) {
+            setShowUpgradeModal(true);
+            setPendingNewConversation(false);
+          }
+          setLoading(false);
+          return;
+        }
+        conversationToUse = createResponse.data;
+        setCurrentConversation(createResponse.data);
+        setPendingNewConversation(false);
+        navigate(`/brainstorming/${createResponse.data.id}`, { replace: true });
+        loadConversations();
+      } catch (err: any) {
+        if (err?.response?.data?.requiresUpgrade) {
+          setShowUpgradeModal(true);
+          setPendingNewConversation(false);
+        } else {
+          console.error('Error creating conversation:', err);
+        }
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (!conversationToUse) {
+      setLoading(false);
+      return;
+    }
 
     try {
       let attachments: any[] = [];
@@ -236,7 +321,7 @@ export default function Brainstorming() {
         }
       }
 
-      const response = await aiApi.addMessage(currentConversation.id, {
+      const response = await aiApi.addMessage(conversationToUse.id, {
         message: userMessage,
         role: 'user',
         attachments: attachments.length > 0 ? attachments : undefined,
@@ -244,6 +329,12 @@ export default function Brainstorming() {
 
       if (response.success) {
         const newMessages = response.data.conversation.messages;
+        // Clear old proposeMatching flags (user continued chatting), then set on last if needed
+        newMessages.forEach((m: any) => { delete m.proposeMatching; });
+        if (response.data.proposeMatching && newMessages.length > 0) {
+          const last = newMessages[newMessages.length - 1];
+          if (last?.role === 'assistant') last.proposeMatching = true;
+        }
         setMessages(newMessages);
         setCurrentConversation(response.data.conversation);
 
@@ -322,6 +413,32 @@ export default function Brainstorming() {
     return -1;
   };
 
+  const handleRateMessage = async (messageIndex: number, rating: 'UP' | 'DOWN') => {
+    if (!currentConversation) return;
+    // Toggle off if same rating clicked
+    if (messageFeedbacks[messageIndex] === rating) {
+      setMessageFeedbacks((prev) => { const next = { ...prev }; delete next[messageIndex]; return next; });
+      return;
+    }
+    setMessageFeedbacks((prev) => ({ ...prev, [messageIndex]: rating }));
+    try {
+      await aiApi.rateMessage(currentConversation.id, { messageIndex, rating });
+    } catch (e) {
+      console.error('rateMessage error', e);
+    }
+  };
+
+  const handleRateSession = async (rating: 'POOR' | 'GOOD' | 'EXCELLENT') => {
+    if (!currentConversation) return;
+    setSessionRated(true);
+    setShowSessionRating(false);
+    try {
+      await aiApi.rateSession(currentConversation.id, { rating });
+    } catch (e) {
+      console.error('rateSession error', e);
+    }
+  };
+
   const handleGenerateMatches = () => {
     // Check if we have enough information quality (at least 3 "good" categories)
     if (!readiness.ready) {
@@ -356,7 +473,9 @@ export default function Brainstorming() {
 
       if (response.success) {
         setMatches(response.data);
-        setShowMatches(true);
+        setShowMatchResults(true);
+        setRightPanelTab('matches');
+        if (!sessionRated) setTimeout(() => setShowSessionRating(true), 800);
       }
     } catch (err: any) {
       console.error('Error generating matches:', err);
@@ -457,6 +576,14 @@ export default function Brainstorming() {
     return matchesSearch && matchesStatus;
   });
 
+  // Parse projectSummary JSON from current conversation
+  const projectSummary = (() => {
+    const raw = currentConversation?.projectSummary;
+    if (!raw) return null;
+    if (typeof raw === 'object') return raw;
+    try { return JSON.parse(raw as string); } catch { return null; }
+  })();
+
   if (!user) return null;
 
   return (
@@ -507,8 +634,14 @@ export default function Brainstorming() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Brainstorming IA</h1>
-            <p className="text-gray-600 mt-1">Décrivez votre projet et trouvez les meilleurs talents</p>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-primary-500/10 to-purple-500/10 border border-primary-200/60 text-primary-700 rounded-full text-xs font-semibold tracking-wide">
+                <span className="w-1.5 h-1.5 bg-primary-500 rounded-full animate-pulse" />
+                Technologie IA exclusive
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">JUNY AI</h1>
+            <p className="text-gray-500 mt-1">Décris ton projet, notre IA analyse et trouve les meilleurs créatifs</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -527,12 +660,24 @@ export default function Brainstorming() {
             </button>
             <button
               onClick={createNewConversation}
-              className="px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-primary-500/30 transition-all flex items-center gap-2"
+              disabled={creatingConversation}
+              className="px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-primary-500/30 transition-all flex items-center gap-2 disabled:opacity-75"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Nouveau projet
+              {creatingConversation ? (
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : hasReachedFreeLimit ? (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              )}
+              {creatingConversation ? 'Création...' : hasReachedFreeLimit ? 'Passer au Starter' : 'Nouveau projet'}
             </button>
           </div>
         </div>
@@ -663,8 +808,8 @@ export default function Brainstorming() {
 
           {/* Chat Area */}
           <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {currentConversation ? (
-              <>
+            {(currentConversation || pendingNewConversation) ? (
+              <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {/* Chat Header */}
                 <div className="px-4 sm:px-6 py-4 border-b border-gray-100 bg-white">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -675,82 +820,129 @@ export default function Brainstorming() {
                         </svg>
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="font-semibold text-gray-900">{currentConversation.projectTitle}</h2>
-                          <button
-                            onClick={openEditTitleModal}
-                            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Modifier le titre"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          {messages.length} message{messages.length > 1 ? 's' : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleGenerateMatches}
-                        disabled={matchingLoading}
-                        className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                      >
-                        {matchingLoading ? (
+                        {pendingNewConversation && !currentConversation ? (
                           <>
-                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Matching...
+                            <h2 className="font-semibold text-gray-900">Nouveau projet</h2>
+                            <p className="text-sm text-gray-500">Envoie ton premier message pour démarrer</p>
                           </>
                         ) : (
                           <>
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            <span className="hidden sm:inline">Trouver des pros</span>
+                            <div className="flex items-center gap-2">
+                              <h2 className="font-semibold text-gray-900">{currentConversation?.projectTitle}</h2>
+                              <button
+                                onClick={openEditTitleModal}
+                                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                title="Modifier le titre"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </button>
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              {messages.length} message{messages.length > 1 ? 's' : ''}
+                            </p>
                           </>
                         )}
-                      </button>
-                      {matches.length > 0 && (
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {pendingNewConversation && !currentConversation ? (
                         <button
-                          onClick={() => setShowMatches(!showMatches)}
-                          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-                            showMatches
-                              ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
-                              : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                          }`}
+                          onClick={() => setPendingNewConversation(false)}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-medium transition-all flex items-center gap-2"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
-                          <span className="hidden sm:inline">{showMatches ? 'Masquer' : 'Voir'}</span>
-                          <span className="bg-white/20 px-1.5 py-0.5 rounded-full text-xs">{matches.length}</span>
+                          Annuler
                         </button>
+                      ) : (
+                        <>
+                          {messages.filter((m: any) => m.role === 'user').length >= 2 && (
+                          <button
+                            onClick={handleGenerateMatches}
+                            disabled={matchingLoading}
+                            className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                          >
+                            {matchingLoading ? (
+                              <>
+                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Matching...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span className="hidden sm:inline">Trouver des pros</span>
+                              </>
+                            )}
+                          </button>
+                          )}
+                          {matches.length > 0 && (
+                            <button
+                              onClick={() => setShowMatches(!showMatches)}
+                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+                                showMatches
+                                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                              }`}
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                              </svg>
+                              <span className="hidden sm:inline">{showMatches ? 'Masquer' : 'Voir'}</span>
+                              <span className="bg-white/20 px-1.5 py-0.5 rounded-full text-xs">{matches.length}</span>
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Messages Area - Clean Claude-like design */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-white">
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gradient-to-b from-gray-50/50 to-white">
                   {messages.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center">
-                        <div className="w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-                          <img src="/logo.png" alt="JUNY" className="w-full h-full object-contain" />
+                    <div className="flex items-center justify-center h-full relative overflow-hidden">
+                      <div className="absolute top-8 right-8 w-40 h-40 bg-primary-100/40 rounded-full blur-2xl pointer-events-none" />
+                      <div className="absolute bottom-8 left-8 w-32 h-32 bg-purple-100/40 rounded-full blur-2xl pointer-events-none" />
+                      <div className="relative text-center max-w-md px-4">
+                        {/* Logo pulse */}
+                        <div className="relative w-20 h-20 mx-auto mb-6">
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-purple-500/20 rounded-2xl animate-pulse" />
+                          <div className="relative w-full h-full bg-white rounded-2xl shadow-md flex items-center justify-center" style={{ boxShadow: '0 4px 24px rgba(255,121,0,0.12)' }}>
+                            <img src="/logo.png" alt="JUNY" className="w-12 h-12 object-contain" />
+                          </div>
                         </div>
-                        <h3 className="text-2xl font-semibold text-gray-900 mb-2">Salut! Je suis JUNY</h3>
-                        <p className="text-gray-500 text-lg">
-                          Parle-moi de ton projet et je t'aiderai à le concrétiser.
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Salut ! Je suis JUNY ✨</h3>
+                        <p className="text-gray-500 mb-6 leading-relaxed">
+                          Dis-moi tout sur ton projet — secteur, objectifs, budget, délais — et je te trouve les meilleurs créatifs.
                         </p>
+                        {/* Suggested prompts */}
+                        <div className="space-y-2 text-left">
+                          {[
+                            '🎨 "J\'ai besoin d\'un logo pour ma startup tech..."',
+                            '📱 "Je cherche un designer UX pour refaire mon app..."',
+                            '🎬 "Je veux créer une vidéo de présentation de 2 min..."',
+                          ].map((prompt) => (
+                            <button
+                              key={prompt}
+                              onClick={() => setInputMessage(prompt.slice(4).replace(/"/g, '').trim())}
+                              className="w-full px-4 py-3 bg-gray-50 hover:bg-primary-50 hover:border-primary-200 border border-gray-200 rounded-xl text-sm text-gray-600 hover:text-primary-700 text-left transition-all duration-200 font-medium"
+                            >
+                              {prompt}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-8">
+                    <div className="space-y-5">
                       {messages.map((msg: any, index: number) => (
                         <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                           {/* Avatar */}
@@ -786,11 +978,11 @@ export default function Brainstorming() {
                               <div className="inline-block text-left max-w-[85%]">
                                 {/* Edit mode */}
                                 {editingMessageIndex === index ? (
-                                  <div className="bg-gray-100 rounded-2xl px-5 py-4">
+                                  <div className="bg-primary-50 border border-primary-100 rounded-2xl px-5 py-4">
                                     <textarea
                                       value={editMessageContent}
                                       onChange={(e) => setEditMessageContent(e.target.value)}
-                                      className="w-full min-w-[300px] bg-white border border-gray-200 rounded-xl px-4 py-3 text-base sm:text-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
+                                      className="w-full min-w-[300px] bg-white border border-primary-200 rounded-xl px-4 py-3 text-base sm:text-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-300"
                                       rows={3}
                                       autoFocus
                                     />
@@ -812,12 +1004,12 @@ export default function Brainstorming() {
                                   </div>
                                 ) : (
                                   <div className="group relative">
-                                    <div className="bg-gray-100 rounded-2xl px-5 py-4">
-                                      <p className="text-gray-800 text-base sm:text-lg whitespace-pre-wrap">
+                                    <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl rounded-tr-sm px-5 py-4 shadow-md shadow-primary-500/20">
+                                      <p className="text-white text-base sm:text-lg whitespace-pre-wrap">
                                         {msg.content}
                                       </p>
                                       {msg.edited && (
-                                        <span className="text-xs text-gray-400 mt-1 block">(modifié)</span>
+                                        <span className="text-xs text-white/60 mt-1 block">(modifié)</span>
                                       )}
                                       {msg.attachments && msg.attachments.length > 0 && (
                                         <MessageAttachments
@@ -857,8 +1049,12 @@ export default function Brainstorming() {
                                 )}
                               </div>
                             ) : (
-                              <div>
-                                <div className="text-gray-700 text-base sm:text-lg leading-relaxed">
+                              <div className="group/juny">
+                                <div className="inline-flex items-center gap-1.5 mb-2 px-2 py-0.5 bg-gradient-to-r from-primary-500/10 to-purple-500/10 border border-primary-100 rounded-full">
+                                  <span className="w-1.5 h-1.5 bg-primary-500 rounded-full" />
+                                  <span className="text-xs font-semibold text-primary-700 tracking-wide">JUNY AI</span>
+                                </div>
+                                <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm px-5 py-4 text-gray-700 text-base sm:text-lg leading-relaxed">
                                   {index === typingMessageIndex ? (
                                     <TypingText
                                       text={msg.content}
@@ -869,12 +1065,56 @@ export default function Brainstorming() {
                                   ) : (
                                     <span className="whitespace-pre-wrap">{highlightText(msg.content)}</span>
                                   )}
+                                  {msg.attachments && msg.attachments.length > 0 && (
+                                    <MessageAttachments
+                                      attachments={msg.attachments}
+                                      onImageClick={(url) => setLightboxImage(url)}
+                                    />
+                                  )}
                                 </div>
-                                {msg.attachments && msg.attachments.length > 0 && (
-                                  <MessageAttachments
-                                    attachments={msg.attachments}
-                                    onImageClick={(url) => setLightboxImage(url)}
-                                  />
+                                {/* Inline matching CTA when JUNY proposes it */}
+                                {msg.proposeMatching && index !== typingMessageIndex && (
+                                  <button
+                                    onClick={handleGenerateMatches}
+                                    disabled={matchingLoading}
+                                    className="mt-3 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl text-sm font-semibold shadow-lg shadow-green-500/25 transition-all hover:scale-[1.02] disabled:opacity-50"
+                                  >
+                                    {matchingLoading ? (
+                                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      </svg>
+                                    )}
+                                    {matchingLoading ? 'Recherche en cours...' : 'Lancer le matching ✨'}
+                                  </button>
+                                )}
+
+                                {/* Feedback thumbs — visible on hover, only for completed messages */}
+                                {index !== typingMessageIndex && (
+                                  <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover/juny:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => handleRateMessage(index, 'UP')}
+                                      className={`p-1.5 rounded-lg transition-colors ${messageFeedbacks[index] === 'UP' ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
+                                      title="Bonne réponse"
+                                    >
+                                      <svg className="w-4 h-4" fill={messageFeedbacks[index] === 'UP' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => handleRateMessage(index, 'DOWN')}
+                                      className={`p-1.5 rounded-lg transition-colors ${messageFeedbacks[index] === 'DOWN' ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}
+                                      title="Réponse à améliorer"
+                                    >
+                                      <svg className="w-4 h-4" fill={messageFeedbacks[index] === 'DOWN' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                                      </svg>
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -886,13 +1126,19 @@ export default function Brainstorming() {
                   {loading && (
                     <div className="mt-8">
                       <div className="flex gap-4">
-                        <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
-                          <img src="/logo.png" alt="JUNY" className="w-full h-full object-contain" />
+                        <div className="flex-shrink-0 w-10 h-10 bg-white rounded-2xl shadow-sm flex items-center justify-center" style={{ boxShadow: '0 2px 12px rgba(255,121,0,0.1)' }}>
+                          <img src="/logo.png" alt="JUNY" className="w-7 h-7 object-contain" />
                         </div>
-                        <div className="flex items-center gap-1.5 pt-3">
-                          <span className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                          <span className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                          <span className="w-2.5 h-2.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        <div className="flex flex-col gap-1">
+                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-gradient-to-r from-primary-500/10 to-purple-500/10 border border-primary-100 rounded-full w-fit">
+                            <span className="w-1.5 h-1.5 bg-primary-500 rounded-full" />
+                            <span className="text-xs font-semibold text-primary-700">JUNY AI</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 py-2">
+                            <span className="w-2.5 h-2.5 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-2.5 h-2.5 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-2.5 h-2.5 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -900,19 +1146,8 @@ export default function Brainstorming() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input Area - Full width design */}
-                <div className="px-4 sm:px-6 lg:px-8 py-4 border-t border-gray-100 bg-white">
-                  {/* File Upload Component */}
-                  {!loading && (
-                    <div className="mb-3">
-                      <FileUpload
-                        onFilesSelected={setSelectedFiles}
-                        maxFiles={5}
-                        maxSize={15}
-                      />
-                    </div>
-                  )}
-
+                {/* Input Area */}
+                <div className="px-4 sm:px-6 lg:px-8 py-4 border-t border-gray-100 bg-gradient-to-b from-white to-gray-50/50">
                   {/* Upload Progress */}
                   {isUploading && (
                     <div className="mb-3 p-3 bg-orange-50 rounded-xl">
@@ -929,180 +1164,405 @@ export default function Brainstorming() {
                     </div>
                   )}
 
-                  <form onSubmit={sendMessage} className="relative">
-                    <input
-                      type="text"
+                  <form onSubmit={sendMessage} className="flex items-end gap-2 bg-white border-2 border-gray-200 rounded-2xl px-3 py-3 focus-within:border-primary-400 focus-within:ring-4 focus-within:ring-primary-500/10 transition-all shadow-sm">
+                    {/* File upload icon */}
+                    {!loading && (
+                      <div className="flex-shrink-0 self-end pb-0.5">
+                        <FileUpload
+                          onFilesSelected={setSelectedFiles}
+                          maxFiles={5}
+                          maxSize={15}
+                          compact
+                        />
+                      </div>
+                    )}
+                    <textarea
                       value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder={selectedFiles.length > 0 ? `${selectedFiles.length} fichier(s) sélectionné(s)...` : "Décris ton projet..."}
-                      className="w-full px-5 py-4 pr-14 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:border-orange-300 focus:ring-2 focus:ring-orange-100 transition-all text-base sm:text-lg"
+                      onChange={(e) => {
+                        setInputMessage(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                      }}
+                      placeholder="Décris ton projet, tes besoins, ton budget..."
+                      rows={1}
+                      className="flex-1 bg-transparent text-base sm:text-lg placeholder:text-gray-400 focus:outline-none resize-none overflow-hidden leading-relaxed"
+                      style={{ minHeight: '28px' }}
                       disabled={loading || isUploading}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage(e as any);
+                        }
+                      }}
                     />
                     <button
                       type="submit"
                       disabled={loading || isUploading || (!inputMessage.trim() && selectedFiles.length === 0)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 text-gray-400 hover:text-orange-500 disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"
+                      className="flex-shrink-0 self-end w-10 h-10 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl flex items-center justify-center shadow-md shadow-primary-500/30 disabled:opacity-30 disabled:shadow-none disabled:bg-gray-300 disabled:from-gray-300 disabled:to-gray-300 transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
                     >
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
                     </button>
                   </form>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center p-6">
-                <div className="text-center max-w-md">
-                  <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Prêt à brainstormer?</h3>
-                  <p className="text-gray-600 mb-6">
-                    Sélectionnez un projet existant ou créez-en un nouveau pour commencer.
+                  <p className="text-xs text-gray-400 mt-2 text-center">
+                    <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-500 font-mono text-[11px]">Entrée</kbd> pour envoyer &nbsp;·&nbsp; <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-500 font-mono text-[11px]">Shift+Entrée</kbd> pour sauter une ligne
                   </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden bg-gradient-to-br from-gray-50 via-white to-orange-50/30 animate-in fade-in duration-300">
+                {/* Decorative blobs */}
+                <div className="absolute top-16 left-16 w-80 h-80 bg-primary-200/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-16 right-16 w-72 h-72 bg-purple-200/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute top-1/2 left-1/2 w-48 h-48 bg-orange-100/30 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+
+                <div className="relative text-center max-w-lg">
+                  {/* Animated logo */}
+                  <div className="relative w-28 h-28 mx-auto mb-8">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-purple-500/20 rounded-3xl animate-pulse" />
+                    <div className="absolute -inset-2 bg-gradient-to-br from-primary-400/10 to-purple-400/10 rounded-3xl animate-breathing" />
+                    <div className="relative w-full h-full bg-white rounded-3xl shadow-lg flex items-center justify-center" style={{ boxShadow: '0 8px 32px rgba(255,121,0,0.15)' }}>
+                      <img src="/logo.png" alt="JUNY" className="w-16 h-16 object-contain" />
+                    </div>
+                  </div>
+
+                  <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                    Décris ton projet,<br />
+                    <span className="bg-gradient-to-r from-primary-500 to-purple-600 bg-clip-text text-transparent">l'IA fait le reste</span>
+                  </h2>
+                  <p className="text-gray-500 text-base mb-8 leading-relaxed">
+                    Notre IA analyse ton brief en profondeur, comprend tes besoins et génère un matching précis avec les meilleurs créatifs.
+                  </p>
+
+                  {/* Feature chips */}
+                  <div className="flex flex-wrap justify-center gap-2 mb-8">
+                    {[
+                      { icon: '🧠', label: 'Brief intelligent' },
+                      { icon: '⚡', label: 'Matching instantané' },
+                      { icon: '🎯', label: 'Score de compatibilité' },
+                      { icon: '💬', label: 'Contact direct' },
+                    ].map((f) => (
+                      <span key={f.label} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium shadow-sm">
+                        <span>{f.icon}</span>
+                        {f.label}
+                      </span>
+                    ))}
+                  </div>
+
                   <button
-                    onClick={createNewConversation}
-                    className="px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-medium shadow-lg shadow-primary-500/30 transition-all inline-flex items-center gap-2"
+                    onClick={() => hasReachedFreeLimit ? setShowUpgradeModal(true) : setPendingNewConversation(true)}
+                    className="px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-2xl font-semibold shadow-xl shadow-primary-500/30 transition-all duration-300 hover:scale-105 inline-flex items-center gap-2 text-base"
                   >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Nouveau projet
+                    {hasReachedFreeLimit ? (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    )}
+                    {hasReachedFreeLimit ? 'Passer au plan Starter' : 'Démarrer mon projet'}
                   </button>
+                  {conversations.length > 0 && (
+                    <p className="text-sm text-gray-400 mt-4">ou sélectionne un projet existant →</p>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Matches Sidebar */}
-          {showMatches && matches.length > 0 && (
+          {/* Right Panel — Brief + Matches (always visible on desktop when a conversation is open) */}
+          {currentConversation && !pendingNewConversation && (
             <div className="hidden lg:flex w-80 bg-white rounded-2xl shadow-sm border border-gray-100 flex-col overflow-hidden">
-              <div className="p-4 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-900">Professionnels Matchés</h3>
-                <p className="text-sm text-gray-500 mt-1">{matches.length} résultat{matches.length > 1 ? 's' : ''}</p>
+
+              {/* ── Tab bar ── */}
+              <div className="flex border-b border-gray-100 shrink-0">
+                <button
+                  onClick={() => setRightPanelTab('brief')}
+                  className={`flex-1 px-3 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    rightPanelTab === 'brief'
+                      ? 'text-primary-600 border-b-2 border-primary-500 bg-primary-50/40'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Brief
+                </button>
+                <button
+                  onClick={() => setRightPanelTab('matches')}
+                  className={`flex-1 px-3 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    rightPanelTab === 'matches'
+                      ? 'text-emerald-600 border-b-2 border-emerald-500 bg-emerald-50/40'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Matchs
+                  {matches.length > 0 && (
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                      rightPanelTab === 'matches' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                    }`}>{matches.length}</span>
+                  )}
+                </button>
               </div>
 
-              {/* Free user upgrade CTA */}
-              {!hasPaidSubscription ? (
-                <div className="flex-1 flex flex-col">
-                  {/* Blurred preview of first match */}
-                  <div className="p-4 relative">
-                    <div className="blur-sm pointer-events-none">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {matches[0]?.professional?.firstName?.[0] || '?'}
-                        </div>
+              {/* ── Brief tab ── */}
+              {rightPanelTab === 'brief' && (
+                <div className="flex-1 overflow-y-auto p-4 space-y-5">
+
+                  {/* Insight categories */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Analyse du projet</h4>
+                    <div className="space-y-3">
+                      {([
+                        { key: 'projectType', label: 'Type de projet' },
+                        { key: 'targetAudience', label: 'Public cible' },
+                        { key: 'visualStyle', label: 'Style visuel' },
+                        { key: 'budget', label: 'Budget' },
+                        { key: 'deadline', label: 'Délais' },
+                      ] as const).map(({ key, label }) => {
+                        const quality: string = currentConversation?.projectInsights?.[key] || 'none';
+                        const qualityMap: Record<string, { bar: string; text: string; width: string; wording: string }> = {
+                          none:       { bar: 'bg-gray-200',     text: 'text-gray-400',    width: '0%',   wording: '—' },
+                          acceptable: { bar: 'bg-amber-400',    text: 'text-amber-600',   width: '40%',  wording: 'Partiel' },
+                          good:       { bar: 'bg-primary-500',  text: 'text-primary-600', width: '70%',  wording: 'Bon' },
+                          excellent:  { bar: 'bg-emerald-500',  text: 'text-emerald-600', width: '100%', wording: 'Excellent' },
+                        };
+                        const q = qualityMap[quality] || qualityMap.none;
+                        return (
+                          <div key={key}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-gray-600">{label}</span>
+                              <span className={`text-xs font-medium ${q.text}`}>{q.wording}</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-1.5">
+                              <div className={`h-1.5 rounded-full transition-all duration-700 ${q.bar}`} style={{ width: q.width }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Readiness bar */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-xl">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-medium text-gray-600">Qualité du brief</span>
+                        <span className="text-xs font-bold text-gray-700">{readiness.goodCount}/5</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-700 ${
+                            readiness.goodCount >= 4 ? 'bg-emerald-500' : readiness.goodCount >= 2 ? 'bg-primary-500' : 'bg-amber-400'
+                          }`}
+                          style={{ width: `${(readiness.goodCount / 5) * 100}%` }}
+                        />
+                      </div>
+                      {readiness.missingCategories.length > 0 && (
+                        <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                          Manque : {readiness.missingCategories.slice(0, 3).join(', ')}
+                          {readiness.missingCategories.length > 3 && ` +${readiness.missingCategories.length - 3}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Project summary sections (generated after matching) */}
+                  {projectSummary ? (
+                    <>
+                      <div className="border-t border-gray-100" />
+
+                      {projectSummary.summary && (
                         <div>
-                          <div className="h-4 w-24 bg-gray-200 rounded"></div>
-                          <div className="h-3 w-16 bg-gray-100 rounded mt-1"></div>
+                          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Résumé</h4>
+                          <p className="text-sm text-gray-700 leading-relaxed">{projectSummary.summary}</p>
                         </div>
-                      </div>
-                      <div className="h-3 w-full bg-gray-100 rounded mb-2"></div>
-                      <div className="h-3 w-3/4 bg-gray-100 rounded"></div>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/80 to-white"></div>
-                  </div>
-
-                  {/* Upgrade CTA */}
-                  <div className="p-6 text-center flex-1 flex flex-col justify-center">
-                    <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <h4 className="font-semibold text-gray-900 mb-2">
-                      {matches.length} créatif{matches.length > 1 ? 's' : ''} trouvé{matches.length > 1 ? 's' : ''}!
-                    </h4>
-                    <p className="text-sm text-gray-500 mb-4">
-                      Passe à Starter pour voir leurs profils, les contacter et obtenir le résumé de ton projet.
-                    </p>
-                    <Link
-                      to="/pricing"
-                      className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-orange-500/30"
-                    >
-                      Passer à Starter
-                    </Link>
-                    <p className="text-xs text-gray-400 mt-3">À partir de 9€/mois</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-                  {matches.map((match: any) => (
-                    <div key={match.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                            {match.professional.firstName[0]}
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900 text-sm">
-                              {match.professional.firstName} {match.professional.lastName}
-                            </h4>
-                            <p className="text-xs text-gray-500">
-                              {match.professional.professions[0]?.profession?.name}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <FavoriteButton professionalId={match.professional.id} size="sm" />
-                          <div className="text-lg font-bold text-green-600">{match.matchScore}%</div>
-                        </div>
-                      </div>
-
-                      <div className="mb-3">
-                        {getProjectStatusBadge(match.projectStatus)}
-                      </div>
-
-                      {match.reasoning && (
-                        <p className="text-xs text-gray-600 mb-3 line-clamp-2">{match.reasoning}</p>
                       )}
 
-                      <div className="flex gap-2 text-xs text-gray-500 mb-3">
-                        {match.professional.experienceYears && (
-                          <span className="flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {match.professional.experienceYears} ans
-                          </span>
-                        )}
-                        {match.professional.hourlyRate && (
-                          <span className="flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {match.professional.hourlyRate}€/h
-                          </span>
-                        )}
+                      {projectSummary.sections && (() => {
+                        const sectionLabels: Record<string, string> = {
+                          contextAndIntention: 'Contexte',
+                          dnaAndValues: 'ADN & Valeurs',
+                          artisticDirection: 'Direction artistique',
+                          targetAndUsage: 'Cible',
+                          budgetAndConstraints: 'Budget',
+                          idealCreativeProfile: 'Profil idéal',
+                          keywordsAndVision: 'Vision',
+                        };
+                        return Object.entries(projectSummary.sections).map(([sKey, val]) => {
+                          if (!val) return null;
+                          return (
+                            <div key={sKey}>
+                              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                                {sectionLabels[sKey] || sKey}
+                              </h4>
+                              <p className="text-sm text-gray-700 leading-relaxed">{val as string}</p>
+                            </div>
+                          );
+                        });
+                      })()}
+
+                      {projectSummary.keywords && projectSummary.keywords.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Mots-clés</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {projectSummary.keywords.map((kw: string, i: number) => (
+                              <span key={i} className="px-2.5 py-0.5 bg-primary-50 text-primary-700 text-xs rounded-full border border-primary-100 font-medium">
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : messages.length === 0 ? (
+                    <div className="text-center py-6">
+                      <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-5 h-5 text-primary-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
                       </div>
+                      <p className="text-xs text-gray-400 leading-relaxed">
+                        Le brief se construit automatiquement au fil de ta conversation avec JUNY.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => openContactModal(match)}
-                          disabled={match.status === 'CONTACTED'}
-                          className={`w-full px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                            match.status === 'CONTACTED'
-                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-lg shadow-primary-500/30'
-                          }`}
+              {/* ── Matches tab ── */}
+              {rightPanelTab === 'matches' && (
+                <>
+                  {matches.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                      <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-6 h-6 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm text-gray-500 font-medium">Aucun match encore</p>
+                      <p className="text-xs text-gray-400 mt-1">Lance le matching pour voir les créatifs compatibles.</p>
+                    </div>
+                  ) : !hasPaidSubscription ? (
+                    <div className="flex-1 flex flex-col">
+                      {/* Blurred preview */}
+                      <div className="p-4 relative">
+                        <div className="blur-sm pointer-events-none">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
+                              {matches[0]?.professional?.firstName?.[0] || '?'}
+                            </div>
+                            <div>
+                              <div className="h-4 w-24 bg-gray-200 rounded" />
+                              <div className="h-3 w-16 bg-gray-100 rounded mt-1" />
+                            </div>
+                          </div>
+                          <div className="h-3 w-full bg-gray-100 rounded mb-2" />
+                          <div className="h-3 w-3/4 bg-gray-100 rounded" />
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/80 to-white" />
+                      </div>
+                      <div className="p-6 text-center flex-1 flex flex-col justify-center">
+                        <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-8 h-8 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                        <h4 className="font-semibold text-gray-900 mb-2">
+                          {matches.length} créatif{matches.length > 1 ? 's' : ''} trouvé{matches.length > 1 ? 's' : ''}!
+                        </h4>
+                        <p className="text-sm text-gray-500 mb-4">Passe à Starter pour voir leurs profils et les contacter.</p>
+                        <Link
+                          to="/pricing"
+                          className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-orange-500/30"
                         >
-                          {match.status === 'CONTACTED' ? 'Déjà contacté' : 'Contacter'}
-                        </button>
-
-                        {match.projectStatus === 'COMPLETED' && !match.rating && (
-                          <button
-                            onClick={() => openRatingModal(match)}
-                            className="w-full px-3 py-2 rounded-xl text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-all"
-                          >
-                            Noter ce professionnel
-                          </button>
-                        )}
+                          Passer à Starter
+                        </Link>
+                        <p className="text-xs text-gray-400 mt-3">À partir de 9€/mois</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+                      {matches.map((match: any) => (
+                        <div key={match.id} className="p-4 hover:bg-gray-50/80 transition-colors group">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
+                              {match.professional.firstName?.[0] ?? '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-gray-900 text-sm truncate">
+                                {match.professional.firstName} {match.professional.lastName}
+                              </h4>
+                              <p className="text-xs text-gray-500 truncate">
+                                {match.professional.professions[0]?.profession?.name || 'Créatif'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <FavoriteButton professionalId={match.professional.id} size="sm" />
+                              <div className="relative w-12 h-12">
+                                <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+                                  <circle cx="24" cy="24" r="19" fill="none" stroke="#f0fdf4" strokeWidth="5" />
+                                  <circle
+                                    cx="24" cy="24" r="19" fill="none"
+                                    stroke={match.matchScore >= 80 ? '#10b981' : match.matchScore >= 60 ? '#f59e0b' : '#6b7280'}
+                                    strokeWidth="5"
+                                    strokeDasharray={`${(match.matchScore / 100) * 119} 119`}
+                                    strokeLinecap="round"
+                                  />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-[10px] font-bold text-gray-900">{match.matchScore}%</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {getProjectStatusBadge(match.projectStatus)}
+                            {match.professional.experienceYears && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">
+                                ⏱ {match.professional.experienceYears} ans
+                              </span>
+                            )}
+                            {match.professional.hourlyRate && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">
+                                💰 {match.professional.hourlyRate}€/h
+                              </span>
+                            )}
+                          </div>
+                          {match.reasoning && (
+                            <p className="text-xs text-gray-500 mb-3 line-clamp-2 italic">"{match.reasoning}"</p>
+                          )}
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => openContactModal(match)}
+                              disabled={match.status === 'CONTACTED'}
+                              className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                                match.status === 'CONTACTED'
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-md shadow-primary-500/20 hover:shadow-lg hover:shadow-primary-500/30 hover:scale-[1.02]'
+                              }`}
+                            >
+                              {match.status === 'CONTACTED' ? '✓ Déjà contacté' : 'Contacter ce créatif'}
+                            </button>
+                            {match.projectStatus === 'COMPLETED' && !match.rating && (
+                              <button
+                                onClick={() => openRatingModal(match)}
+                                className="w-full px-3 py-2 rounded-xl text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all"
+                              >
+                                ⭐ Noter ce professionnel
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1220,6 +1680,172 @@ export default function Brainstorming() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Match Results Modal */}
+      {showMatchResults && matches.length > 0 && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl my-auto animate-in fade-in zoom-in-95 duration-300">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Tes meilleurs matchs 🎯</h2>
+                <p className="text-gray-500 text-sm mt-1">Sélectionnés par JUNY AI selon ton brief</p>
+              </div>
+              <button
+                onClick={() => { setShowMatchResults(false); setShowMatches(true); }}
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Cards */}
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {matches.slice(0, 3).map((match, i) => {
+                const isLocked = isFreeTier && i > 0;
+                const score = match.matchScore;
+                const circumference = 138; // 2π × 22
+                return (
+                  <div
+                    key={match.id}
+                    className="relative bg-gradient-to-b from-gray-50 to-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col animate-in fade-in slide-in-from-bottom-6"
+                    style={{ animationDelay: `${i * 150}ms`, animationFillMode: 'both' }}
+                  >
+                    {isLocked && (
+                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-2xl z-10 flex flex-col items-center justify-center gap-2">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <p className="text-sm font-semibold text-gray-600">Profil verrouillé</p>
+                        <Link to="/pricing" className="text-xs text-primary-600 font-medium hover:underline">Plan Starter →</Link>
+                      </div>
+                    )}
+
+                    {/* Score ring */}
+                    <div className="absolute top-4 right-4">
+                      <div className="relative w-14 h-14">
+                        <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                          <circle cx="28" cy="28" r="22" fill="none" stroke="#f3f4f6" strokeWidth="5" />
+                          <circle
+                            cx="28" cy="28" r="22" fill="none"
+                            stroke={score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#6b7280'}
+                            strokeWidth="5"
+                            strokeLinecap="round"
+                            strokeDasharray={matchResultsRevealed ? `${(score / 100) * circumference} ${circumference}` : `0 ${circumference}`}
+                            style={{ transition: `stroke-dasharray 1s ease ${i * 200}ms` }}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xs font-bold text-gray-900">{score}%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Avatar */}
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl mb-4 overflow-hidden flex-shrink-0"
+                      style={{ background: 'linear-gradient(135deg, #f97316, #a855f7)' }}>
+                      {match.professional.profilePictureUrl ? (
+                        <img src={match.professional.profilePictureUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{match.professional.firstName?.[0] ?? '?'}</span>
+                      )}
+                    </div>
+
+                    {/* Name & Profession */}
+                    <h3 className="font-bold text-gray-900 text-base pr-16">
+                      {match.professional.firstName} {match.professional.lastName}
+                    </h3>
+                    <p className="text-sm text-primary-600 font-medium mb-3">
+                      {match.professional.professions?.[0]?.profession?.name || 'Créatif'}
+                    </p>
+
+                    {/* Stats */}
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {match.professional.experienceYears && (
+                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">⏱ {match.professional.experienceYears} ans</span>
+                      )}
+                      {match.professional.hourlyRate && (
+                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">💰 {match.professional.hourlyRate}€/h</span>
+                      )}
+                    </div>
+
+                    {/* Reasoning */}
+                    {match.reasoning && (
+                      <p className="text-xs text-gray-500 italic leading-relaxed mb-4 flex-1 line-clamp-3">
+                        "{match.reasoning}"
+                      </p>
+                    )}
+
+                    {/* CTA */}
+                    <button
+                      onClick={() => { if (!isLocked) { openContactModal(match); setShowMatchResults(false); } }}
+                      disabled={isLocked || match.status === 'CONTACTED'}
+                      className={`w-full px-4 py-2.5 text-sm font-semibold rounded-xl transition-all mt-auto ${
+                        match.status === 'CONTACTED'
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-md shadow-primary-500/20 hover:scale-[1.02]'
+                      }`}
+                    >
+                      {match.status === 'CONTACTED' ? '✓ Contacté' : 'Contacter'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-5 text-center">
+              <button
+                onClick={() => { setShowMatchResults(false); setShowMatches(true); }}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Voir tous les détails →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Rating Modal */}
+      {showSessionRating && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <img src="/logo.png" alt="JUNY" className="w-6 h-6 object-contain" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">JUNY a bien cerné ton projet ?</p>
+                <p className="text-xs text-gray-500">Ton retour nous aide à améliorer l'IA</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {([
+                { value: 'POOR', emoji: '😕', label: 'Pas vraiment' },
+                { value: 'GOOD', emoji: '🙂', label: 'Plutôt bien' },
+                { value: 'EXCELLENT', emoji: '🎯', label: 'Parfaitement' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleRateSession(opt.value)}
+                  className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 hover:bg-primary-50 hover:border-primary-300 border-2 border-transparent rounded-xl transition-all"
+                >
+                  <span className="text-2xl">{opt.emoji}</span>
+                  <span className="text-xs font-medium text-gray-700">{opt.label}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowSessionRating(false)}
+              className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Passer
+            </button>
           </div>
         </div>
       )}
@@ -1463,6 +2089,61 @@ export default function Brainstorming() {
           imageUrl={lightboxImage}
           onClose={() => setLightboxImage(null)}
         />
+      )}
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-orange-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/30">
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Limite du plan gratuit atteinte</h2>
+              <p className="text-gray-500 text-sm mb-2">
+                Le plan gratuit inclut <strong>1 session de brainstorming</strong> et révèle <strong>1 profil de match</strong>.
+              </p>
+              <p className="text-gray-500 text-sm mb-6">
+                Passez au plan <strong className="text-primary-600">Starter</strong> pour créer des projets illimités et voir tous vos matchs.
+              </p>
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left space-y-2">
+                {[
+                  'Sessions de brainstorming illimitées',
+                  'Tous les profils de matchs révélés',
+                  'Contacter les professionnels',
+                  'Export de brief PDF',
+                ].map(f => (
+                  <div key={f} className="flex items-center gap-2 text-sm text-gray-700">
+                    <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {f}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-3">
+                <Link
+                  to="/settings"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-xl font-semibold transition-all shadow-lg shadow-primary-500/20"
+                  onClick={() => setShowUpgradeModal(false)}
+                >
+                  Voir les plans
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+                <button
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Continuer avec le plan gratuit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </CreatorLayout>
   );

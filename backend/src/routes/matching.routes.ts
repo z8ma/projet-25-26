@@ -12,6 +12,7 @@ router.post('/conversations/:conversationId/match', matchingController.generateM
 router.get('/conversations/:conversationId/matches', matchingController.getMatches.bind(matchingController));
 router.put('/matches/:matchId/contact', matchingController.contactProfessional.bind(matchingController));
 router.put('/matches/:matchId/project-status', matchingController.updateProjectStatus.bind(matchingController));
+router.put('/matches/:matchId/creator-project-status', matchingController.creatorUpdateProjectStatus.bind(matchingController));
 
 // Messaging
 router.get('/conversations/professional', matchingController.getConversationsProfessional.bind(matchingController));

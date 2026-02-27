@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma.js';
-import { generateGeminiResponse, generateProjectTitle } from '../services/gemini.service.js';
+import { generateGeminiResponse, generateProjectTitle, analyzeImagesWithVision } from '../services/gemini.service.js';
 
 export class AiController {
   // GET /api/ai/conversations - Get all conversations for creator
@@ -146,6 +146,23 @@ export class AiController {
         });
       }
 
+      // Free tier: limit to 1 brainstorming session
+      const activeSubscription = await prisma.subscription.findFirst({
+        where: { userId, status: 'ACTIVE' },
+      });
+      if (!activeSubscription) {
+        const existingCount = await prisma.aiConversation.count({
+          where: { creatorId: creator.id },
+        });
+        if (existingCount >= 1) {
+          return res.status(403).json({
+            success: false,
+            message: 'Le plan gratuit est limité à 1 session de brainstorming. Passez au plan Starter pour en créer d\'autres.',
+            requiresUpgrade: true,
+          });
+        }
+      }
+
       const conversation = await prisma.aiConversation.create({
         data: {
           creatorId: creator.id,
@@ -221,6 +238,7 @@ export class AiController {
 
       // Generate AI response using Gemini
       let aiResponse = '';
+      let proposeMatching = false;
 
       if (role === 'user') {
         // Convert conversation messages to the format expected by Gemini
@@ -228,6 +246,42 @@ export class AiController {
           role: msg.role as 'user' | 'assistant',
           content: msg.content,
         }));
+
+        // Fetch past conversations for cross-conversation memory (excluding current)
+        const pastConversations = await prisma.aiConversation.findMany({
+          where: { creatorId: creator.id, id: { not: id as string } },
+          orderBy: { updatedAt: 'desc' },
+          take: 5,
+          select: { projectTitle: true, projectSummary: true, status: true },
+        });
+
+        const pastProjects = pastConversations.map((conv) => {
+          let summaryText: string | undefined;
+          let insightsData: any = undefined;
+          if (conv.projectSummary) {
+            try {
+              const parsed = typeof conv.projectSummary === 'string'
+                ? JSON.parse(conv.projectSummary)
+                : conv.projectSummary;
+              summaryText = parsed?.summary;
+              if (parsed?.insights) {
+                insightsData = {
+                  budget: parsed.insights.budget?.value,
+                  deadline: parsed.insights.deadline?.value,
+                  style: parsed.insights.style?.value,
+                  target: parsed.insights.target?.value,
+                  objective: parsed.insights.objective?.value,
+                };
+              }
+            } catch { /* ignore malformed JSON */ }
+          }
+          return {
+            title: conv.projectTitle || 'Projet sans titre',
+            summary: summaryText,
+            insights: insightsData,
+            status: conv.status as 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED',
+          };
+        });
 
         // Call Gemini API for real AI response
         const geminiResult = await generateGeminiResponse(
@@ -238,11 +292,13 @@ export class AiController {
             industry: creator.industry,
             typicalBudget: creator.typicalBudget,
             preferredCreatives: creator.preferredCreatives as string[] | undefined,
+            pastProjects: pastProjects.length > 0 ? pastProjects : undefined,
           }
         );
 
         if (geminiResult.text) {
-          aiResponse = geminiResult.text;
+          proposeMatching = geminiResult.text.includes('[MATCHING_READY]');
+          aiResponse = geminiResult.text.replace('[MATCHING_READY]', '').trim();
         } else {
           // Fallback to mock response if Gemini fails
           console.warn('Gemini failed, using mock response:', geminiResult.error);
@@ -255,41 +311,39 @@ export class AiController {
         }
       }
 
-      // TODO: Analyze images with Gemini Vision API (when available)
-      // Extract visual insights: style, colors, mood, references, etc.
+      // Analyze images with Gemini Vision API
       let visualInsights: any = null;
       if (attachments && attachments.length > 0) {
-        // Placeholder for future Vision API integration
-        // visualInsights = await analyzeImagesWithVision(attachments);
-
-        // For now, extract basic info from attachments
         const images = attachments.filter((a: any) => a.resourceType === 'image');
         const pdfs = attachments.filter((a: any) => a.resourceType === 'raw');
 
-        visualInsights = {
-          hasVisuals: true,
-          imageCount: images.length,
-          pdfCount: pdfs.length,
-          // These fields will be populated by Vision API later:
-          dominantColors: [],
-          detectedStyles: [],
-          mood: null,
-          complexity: null,
-        };
-
-        // Update insights with visual information
         if (images.length > 0 && role === 'user') {
-          updatedInsights = {
-            ...updatedInsights,
-            visualReferences: {
-              provided: true,
-              count: images.length,
-              // Will be enriched by Vision API:
-              analyzedStyles: [],
-              colorPalette: [],
-              visualMood: null,
-            },
-          };
+          try {
+            const visionResult = await analyzeImagesWithVision(images);
+            visualInsights = {
+              hasVisuals: true,
+              imageCount: images.length,
+              pdfCount: pdfs.length,
+              ...visionResult,
+            };
+            updatedInsights = {
+              ...updatedInsights,
+              visualReferences: {
+                provided: true,
+                count: images.length,
+                analyzedStyles: visionResult.detectedStyles,
+                colorPalette: visionResult.dominantColors,
+                visualMood: visionResult.mood,
+                creativeDirection: visionResult.creativeDirection,
+                culturalReferences: visionResult.visualReferences,
+              },
+            };
+          } catch (visionErr) {
+            console.error('Vision analysis failed:', visionErr);
+            visualInsights = { hasVisuals: true, imageCount: images.length, pdfCount: pdfs.length };
+          }
+        } else {
+          visualInsights = { hasVisuals: true, imageCount: 0, pdfCount: pdfs.length };
         }
       }
 
@@ -311,6 +365,7 @@ export class AiController {
           role: 'assistant',
           content: aiResponse,
           timestamp: new Date().toISOString(),
+          ...(proposeMatching && { proposeMatching: true }),
         });
       }
 
@@ -350,6 +405,7 @@ export class AiController {
         data: {
           conversation: updatedConversation,
           aiResponse: role === 'user' ? aiResponse : null,
+          proposeMatching: role === 'user' ? proposeMatching : false,
           readiness: {
             ready: readiness.ready,
             goodCount: readiness.goodCount,
@@ -495,6 +551,42 @@ export class AiController {
         content: msg.content,
       }));
 
+      // Fetch past conversations for memory context (excluding current)
+      const pastConvsEdit = await prisma.aiConversation.findMany({
+        where: { creatorId: creator.id, id: { not: id as string } },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+        select: { projectTitle: true, projectSummary: true, status: true },
+      });
+
+      const pastProjectsEdit = pastConvsEdit.map((conv) => {
+        let summaryText: string | undefined;
+        let insightsData: any = undefined;
+        if (conv.projectSummary) {
+          try {
+            const parsed = typeof conv.projectSummary === 'string'
+              ? JSON.parse(conv.projectSummary)
+              : conv.projectSummary;
+            summaryText = parsed?.summary;
+            if (parsed?.insights) {
+              insightsData = {
+                budget: parsed.insights.budget?.value,
+                deadline: parsed.insights.deadline?.value,
+                style: parsed.insights.style?.value,
+                target: parsed.insights.target?.value,
+                objective: parsed.insights.objective?.value,
+              };
+            }
+          } catch { /* ignore */ }
+        }
+        return {
+          title: conv.projectTitle || 'Projet sans titre',
+          summary: summaryText,
+          insights: insightsData,
+          status: conv.status as 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED',
+        };
+      });
+
       const geminiResult = await generateGeminiResponse(
         newContent,
         conversationHistory,
@@ -503,6 +595,7 @@ export class AiController {
           industry: creator.industry,
           typicalBudget: creator.typicalBudget,
           preferredCreatives: creator.preferredCreatives as string[] | undefined,
+          pastProjects: pastProjectsEdit.length > 0 ? pastProjectsEdit : undefined,
         }
       );
 
@@ -996,6 +1089,70 @@ export class AiController {
     if (names.length === 0) return '';
 
     return `Je vois que vous travaillez habituellement avec des ${names.join(', ')} - je garderai cela en tête pour le matching!`;
+  }
+
+  // POST /api/ai/conversations/:id/message-feedback
+  async rateMessage(req: Request, res: Response) {
+    try {
+      const userId = req.userId as string;
+      const { id: conversationId } = req.params;
+      const { messageIndex, rating } = req.body as { messageIndex: number; rating: string };
+
+      if (!['UP', 'DOWN'].includes(rating)) {
+        return res.status(400).json({ success: false, message: 'rating must be UP or DOWN' });
+      }
+
+      // Verify conversation belongs to this user
+      const creator = await prisma.creator.findUnique({ where: { userId } });
+      if (!creator) return res.status(404).json({ success: false, message: 'Créateur non trouvé' });
+
+      const conversation = await prisma.aiConversation.findFirst({
+        where: { id: conversationId as string, creatorId: creator.id },
+      });
+      if (!conversation) return res.status(404).json({ success: false, message: 'Conversation non trouvée' });
+
+      await prisma.messageFeedback.upsert({
+        where: { conversationId_messageIndex: { conversationId: conversationId as string, messageIndex: Number(messageIndex) } },
+        update: { rating },
+        create: { conversationId: conversationId as string, messageIndex: Number(messageIndex), rating },
+      });
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('rateMessage error:', error);
+      return res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
+  }
+
+  // POST /api/ai/conversations/:id/session-rating
+  async rateSession(req: Request, res: Response) {
+    try {
+      const userId = req.userId as string;
+      const { id: conversationId } = req.params;
+      const { rating } = req.body;
+
+      if (!['POOR', 'GOOD', 'EXCELLENT'].includes(rating)) {
+        return res.status(400).json({ success: false, message: 'rating must be POOR, GOOD or EXCELLENT' });
+      }
+
+      const creator = await prisma.creator.findUnique({ where: { userId } });
+      if (!creator) return res.status(404).json({ success: false, message: 'Créateur non trouvé' });
+
+      const conversation = await prisma.aiConversation.findFirst({
+        where: { id: conversationId as string, creatorId: creator.id },
+      });
+      if (!conversation) return res.status(404).json({ success: false, message: 'Conversation non trouvée' });
+
+      await prisma.aiConversation.update({
+        where: { id: conversationId as string },
+        data: { sessionRating: rating as string },
+      });
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('rateSession error:', error);
+      return res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
   }
 }
 

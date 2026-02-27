@@ -64,6 +64,7 @@ router.get('/follow/:id/status', professionalController.getFollowStatus.bind(pro
 router.post('/portfolio/:portfolioId/like', professionalController.likePortfolio.bind(professionalController));
 router.delete('/portfolio/:portfolioId/like', professionalController.unlikePortfolio.bind(professionalController));
 router.get('/portfolio/likes/status', professionalController.getLikedPortfolios.bind(professionalController));
+router.get('/portfolio/liked-by-me', professionalController.getMyLikedPortfolios.bind(professionalController));
 
 // Portfolio Comments
 router.get('/portfolio/:portfolioId/comments', professionalController.getPortfolioComments.bind(professionalController));

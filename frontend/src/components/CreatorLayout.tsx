@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useSidebar } from '../contexts/SidebarContext';
+import { subscriptionApi } from '../services/api';
 import NotificationDropdown from './NotificationDropdown';
+import GlobalSearch from './GlobalSearch';
 
 interface CreatorLayoutProps {
   children: React.ReactNode;
@@ -10,10 +12,20 @@ interface CreatorLayoutProps {
 
 export default function CreatorLayout({ children }: CreatorLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [planName, setPlanName] = useState<string>('Gratuit');
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    subscriptionApi.getCurrent().then((res) => {
+      if (res.success) {
+        const name = res.data.plan?.name;
+        setPlanName(name === 'Free' ? 'Gratuit' : (name || 'Gratuit'));
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -31,7 +43,7 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
       ),
     },
     {
-      name: 'Brainstorming IA',
+      name: 'JUNY AI',
       path: '/brainstorming',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -58,7 +70,7 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
       ),
     },
     {
-      name: 'Favoris',
+      name: 'Mes listes',
       path: '/favorites',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -140,8 +152,12 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
             <span className="px-2.5 py-1 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
               Créateur
             </span>
-            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-              Gratuit
+            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+              planName === 'Gratuit'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-purple-100 text-purple-700'
+            }`}>
+              {planName}
             </span>
           </div>
         </div>
@@ -257,16 +273,7 @@ export default function CreatorLayout({ children }: CreatorLayoutProps) {
 
             {/* Search Bar - Desktop */}
             <div className="hidden lg:flex flex-1 max-w-xl">
-              <div className="relative w-full">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Rechercher..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500 transition-all duration-200"
-                />
-              </div>
+              <GlobalSearch />
             </div>
 
             {/* Right Actions */}

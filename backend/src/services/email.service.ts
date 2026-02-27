@@ -121,6 +121,287 @@ Si vous avez des questions, contactez-nous à contact@junyia.fr
   }
 
   /**
+   * Send email to professional when a creator contacts them
+   */
+  async sendMatchContactedEmail(
+    proEmail: string,
+    proName: string,
+    creatorName: string,
+    projectTitle: string,
+  ): Promise<void> {
+    const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Nouveau projet sur JUNY</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f3f4f6;">
+            <tr>
+              <td style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                  <tr>
+                    <td style="padding: 40px 40px 20px; text-align: center;">
+                      <div style="display: inline-block; width: 64px; height: 64px; background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); border-radius: 50%; margin-bottom: 20px;">
+                        <svg width="64" height="64" fill="none" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="2" style="padding: 16px;">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                      <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #111827;">Nouveau projet !</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0 40px 40px;">
+                      <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                        Bonjour ${proName},
+                      </p>
+                      <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                        <strong>${creatorName}</strong> vous a contacté sur JUNY pour le projet :
+                      </p>
+                      <div style="margin: 24px 0; padding: 20px; background-color: #f9fafb; border-left: 4px solid #9333ea; border-radius: 8px;">
+                        <p style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">${projectTitle}</p>
+                      </div>
+                      <p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                        Consultez le message et le brief du projet sur votre tableau de bord, puis acceptez ou déclinez la mission.
+                      </p>
+                      <table role="presentation" style="width: 100%; margin: 0 0 24px;">
+                        <tr>
+                          <td style="text-align: center;">
+                            <a href="${dashboardUrl}" style="display: inline-block; padding: 16px 32px; background-color: #9333ea; color: #ffffff; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 16px;">
+                              Voir le projet
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 24px 40px; background-color: #f9fafb; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                      <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #6b7280; text-align: center;">
+                        © ${new Date().getFullYear()} JUNY. Tous droits réservés.<br>
+                        <a href="mailto:contact@junyia.fr" style="color: #9333ea; text-decoration: none;">contact@junyia.fr</a>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+
+    await this.transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: proEmail,
+      subject: `Nouveau projet : ${projectTitle} - JUNY`,
+      text: `Bonjour ${proName},\n\n${creatorName} vous a contacté sur JUNY pour le projet "${projectTitle}".\n\nConnectez-vous pour consulter le brief et répondre : ${dashboardUrl}\n\n© ${new Date().getFullYear()} JUNY`,
+      html: htmlContent,
+    });
+  }
+
+  /**
+   * Send email to creator when professional accepts or declines
+   */
+  async sendMatchRespondedEmail(
+    creatorEmail: string,
+    creatorName: string,
+    proName: string,
+    projectTitle: string,
+    accepted: boolean,
+  ): Promise<void> {
+    const projectsUrl = `${process.env.FRONTEND_URL}/projects`;
+    const accentColor = accepted ? '#10b981' : '#6b7280';
+    const statusLabel = accepted ? 'accepté' : 'décliné';
+    const emoji = accepted ? '🎉' : '😔';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Réponse à votre projet - JUNY</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f3f4f6;">
+            <tr>
+              <td style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                  <tr>
+                    <td style="padding: 40px 40px 20px; text-align: center;">
+                      <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #111827;">
+                        ${emoji} Mission ${statusLabel}e
+                      </h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0 40px 40px;">
+                      <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                        Bonjour ${creatorName},
+                      </p>
+                      <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                        <strong>${proName}</strong> a <strong style="color: ${accentColor};">${statusLabel}</strong> votre projet :
+                      </p>
+                      <div style="margin: 24px 0; padding: 20px; background-color: #f9fafb; border-left: 4px solid ${accentColor}; border-radius: 8px;">
+                        <p style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">${projectTitle}</p>
+                      </div>
+                      ${accepted
+                        ? `<p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                            Super nouvelle ! Vous pouvez maintenant échanger directement avec ${proName} pour démarrer votre collaboration.
+                          </p>`
+                        : `<p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                            Pas d'inquiétude — d'autres profils correspondent à votre projet. Consultez vos matchs pour trouver le professionnel idéal.
+                          </p>`
+                      }
+                      <table role="presentation" style="width: 100%; margin: 0 0 24px;">
+                        <tr>
+                          <td style="text-align: center;">
+                            <a href="${projectsUrl}" style="display: inline-block; padding: 16px 32px; background-color: #9333ea; color: #ffffff; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 16px;">
+                              Voir mes projets
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 24px 40px; background-color: #f9fafb; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                      <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #6b7280; text-align: center;">
+                        © ${new Date().getFullYear()} JUNY. Tous droits réservés.<br>
+                        <a href="mailto:contact@junyia.fr" style="color: #9333ea; text-decoration: none;">contact@junyia.fr</a>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+
+    await this.transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: creatorEmail,
+      subject: `${proName} a ${statusLabel} votre projet "${projectTitle}" - JUNY`,
+      text: `Bonjour ${creatorName},\n\n${proName} a ${statusLabel} votre projet "${projectTitle}".\n\nConsultez vos projets : ${projectsUrl}\n\n© ${new Date().getFullYear()} JUNY`,
+      html: htmlContent,
+    });
+  }
+
+  /**
+   * Send password reset email
+   */
+  async sendPasswordResetEmail(email: string, token: string): Promise<void> {
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Réinitialisation de votre mot de passe - JUNY</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f3f4f6;">
+            <tr>
+              <td style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                  <!-- Header -->
+                  <tr>
+                    <td style="padding: 40px 40px 20px; text-align: center;">
+                      <div style="display: inline-block; width: 64px; height: 64px; background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%); border-radius: 50%; margin-bottom: 20px;">
+                        <svg width="64" height="64" fill="none" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="2" style="padding: 16px;">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                      </div>
+                      <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #111827;">Mot de passe oublié ?</h1>
+                    </td>
+                  </tr>
+
+                  <!-- Content -->
+                  <tr>
+                    <td style="padding: 0 40px 40px;">
+                      <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #4b5563;">
+                        Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.
+                      </p>
+
+                      <!-- CTA Button -->
+                      <table role="presentation" style="width: 100%; margin: 32px 0;">
+                        <tr>
+                          <td style="text-align: center;">
+                            <a href="${resetUrl}" style="display: inline-block; padding: 16px 32px; background-color: #9333ea; color: #ffffff; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 16px;">
+                              Réinitialiser mon mot de passe
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <div style="margin: 24px 0; padding: 16px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
+                        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #92400e;">
+                          <strong>Ce lien expire dans 1 heure.</strong> Si vous n'avez pas demandé de réinitialisation, ignorez cet email — votre mot de passe ne sera pas modifié.
+                        </p>
+                      </div>
+
+                      <!-- Alternative link -->
+                      <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                        <p style="margin: 0 0 8px; font-size: 13px; color: #6b7280;">
+                          Le bouton ne fonctionne pas ? Copiez et collez ce lien dans votre navigateur :
+                        </p>
+                        <p style="margin: 0; font-size: 13px; color: #9333ea; word-break: break-all;">
+                          ${resetUrl}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding: 24px 40px; background-color: #f9fafb; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                      <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #6b7280; text-align: center;">
+                        © ${new Date().getFullYear()} JUNY. Tous droits réservés.<br>
+                        Si vous avez des questions, contactez-nous à <a href="mailto:contact@junyia.fr" style="color: #9333ea; text-decoration: none;">contact@junyia.fr</a>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const textContent = `
+Réinitialisation de votre mot de passe JUNY
+
+Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous pour choisir un nouveau mot de passe :
+
+${resetUrl}
+
+Ce lien expire dans 1 heure. Si vous n'avez pas demandé de réinitialisation, ignorez cet email.
+
+---
+© ${new Date().getFullYear()} JUNY. Tous droits réservés.
+Si vous avez des questions, contactez-nous à contact@junyia.fr
+    `.trim();
+
+    await this.transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: 'Réinitialisation de votre mot de passe - JUNY',
+      text: textContent,
+      html: htmlContent,
+    });
+  }
+
+  /**
    * Send account deletion confirmation email
    */
   async sendAccountDeletionEmail(email: string, name: string): Promise<void> {

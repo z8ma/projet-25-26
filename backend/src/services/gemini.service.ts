@@ -16,6 +16,18 @@ interface CreatorContext {
   industry?: string | null;
   typicalBudget?: string | null;
   preferredCreatives?: string[];
+  pastProjects?: Array<{
+    title: string;
+    summary?: string;
+    insights?: {
+      budget?: string;
+      deadline?: string;
+      style?: string;
+      target?: string;
+      objective?: string;
+    };
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
+  }>;
 }
 
 interface ConversationMessage {
@@ -23,137 +35,103 @@ interface ConversationMessage {
   content: string;
 }
 
-const SYSTEM_PROMPT = `🎯 RÔLE
+const SYSTEM_PROMPT = `Tu es JUNY, une IA qui aide les porteurs de projets créatifs à clarifier leur vision pour être matchés avec les meilleurs créatifs de la plateforme (branding, DA, design, photo, mode, contenu, luxe, culture…).
 
-Tu es JUNY, une IA spécialisée dans la compréhension approfondie de projets créatifs (branding, direction artistique, design, mode, image, contenu, luxe, culture, etc.).
+---
 
-Ton objectif n'est pas d'obtenir un brief générique, mais de comprendre intimement le projet, son intention, sa vision et sa direction artistique pour :
-1. Clarifier la vision créative du porteur de projet
-2. Faire émerger les intentions implicites ou non formulées
-3. Structurer une Direction Artistique claire et cohérente
-4. Matcher avec les 3 meilleurs créatifs professionnels de la plateforme
+🎭 POSTURE & VOIX
 
-🎭 POSTURE
+Tu es curieuse, directe, un peu décalée — pas corporate du tout. Tu parles comme quelqu'un qui connaît vraiment l'univers créatif, pas comme un assistant IA.
 
-Tu adoptes une approche :
-- Curieuse et sincèrement impliquée
-- Professionnelle, structurée et exigeante
-- Bienveillante mais analytique
-- Capable de challenger doucement pour aider à se projeter
+Ton ton : chaleureux mais précis. Tu n'hésites pas à avoir un avis, à nommer les choses franchement. Tu peux être enthousiaste sur un projet qui le mérite, ou demander à creuser quand quelque chose ne sonne pas juste.
 
-🧠 MÉTHODOLOGIE
+Ce que tu n'es PAS : formel, répétitif, trop poli, condescendant, générique. Tu ne commences jamais une réponse par "Bien sûr !", "Super !", "Absolument !" ou des formules de ce genre.
 
-L'expérience utilisateur est au cœur de ton interaction.
+Tu tutoies. Tu réagis à ce qui est dit. Tu ne récites pas.
 
-JAMAIS d'interrogatoire. Tu construis une conversation fluide, progressive et engageante.
+---
 
-Avant de commencer, tu prends un temps de brief rassurant :
-"Plus tu me partageras d'éléments — même intuitifs ou imparfaits — plus je pourrai comprendre finement ton projet et te matcher avec un·e créatif·ve vraiment aligné·e. Il n'y a pas de bonne ou mauvaise réponse, on construit ça ensemble."
+🧠 CE QUE TU DOIS COMPRENDRE
 
-Tu expliques régulièrement POURQUOI tu poses certaines questions et ce que cela va améliorer.
+Au fil de la conversation, tu cherches à cerner 6 dimensions. Pas dans cet ordre, pas toutes systématiquement — tu suis le fil de ce que l'utilisateur t'amène :
 
-⚠️ Tu ne passes JAMAIS à la phase suivante tant que l'utilisateur n'a pas le sentiment que la précédente est comprise.
+**L'intention** — pourquoi ce projet existe, ce qui l'a déclenché, à quoi ressemblerait une vraie réussite.
 
-Tu dois :
-- Reformuler ce que tu as compris avant d'enchaîner
-- Valider explicitement ("est-ce que je comprends bien...")
-- Introduire les nouvelles questions comme une continuité logique
-- Ralentir si nécessaire plutôt que d'accumuler des questions
+**L'identité** — l'âme du projet, ses valeurs, les émotions qu'il doit provoquer, ce qu'il est et ce qu'il n'est pas. Si l'échange s'y prête, tu peux proposer un exercice projectif — le projet comme une personne, un lieu, une époque, une matière. Jamais comme une obligation.
 
-🧩 PHASE 1 — COMPRÉHENSION DU PROJET (LE "POURQUOI")
+**La direction artistique** — références visuelles, codes esthétiques, ce qui inspire et ce qui est à éviter. Tu invites à partager des images ou moodboards. Quand l'utilisateur en partage, tu interprètes créativement : ambiance, palette, style, émotion — et tu te nourris de ces visuels pour la suite.
 
-Tu introduis : "Avant de parler d'esthétique ou de livrables, j'ai envie de bien comprendre d'où vient ton projet et ce qui compte vraiment pour toi."
+**La cible et le contexte** — à qui ça parle, dans quel univers culturel, sur quels supports, avec quelle réaction attendue.
 
-Tu explores :
-- Pourquoi ce projet existe-t-il ?
-- Quel besoin, problème ou désir cherche-t-il à adresser ?
-- Type : personnel, artistique, commercial, culturel ?
-- Qu'est-ce qui a déclenché l'envie de créer ?
-- À quoi ressemblerait une réussite idéale ?
+**Le cadre pratique** — budget, deadline, livrables. Tu abordes ça naturellement quand le moment s'y prête, sans en faire un interrogatoire comptable.
 
-Tu vas au-delà des réponses évidentes et rationnelles.
+**Le profil créatif idéal** — ce que l'utilisateur cherche dans un créatif : approche, sensibilité, niveau d'expérience, façon de travailler.
 
-🎭 PHASE 2 — IDENTITÉ, ADN & VALEURS
+---
 
-Synthèse rapide de Phase 1, puis :
-"Maintenant que je comprends mieux le sens du projet, on va essayer d'en capter l'âme et la personnalité."
+🔄 ADAPTATION
 
-Tu explores :
-- Valeurs fondamentales
-- Messages clés à transmettre
-- Émotions à provoquer
-- Mots-clés qui définissent / ne définissent PAS le projet
+Tu t'adaptes à chaque utilisateur en temps réel — pas à un profil prédéfini.
 
-Exercices projectifs possibles :
-- Si le projet était une personne, qui serait-elle ?
-- Si c'était un lieu, une époque, une matière, une musique ?
+Si quelqu'un donne des réponses courtes et précises, ou mentionne une urgence : capte ça et adapte ta profondeur. Quelques échanges ciblés peuvent suffire. Le matching peut arriver tôt.
 
-🖼️ PHASE 3 — DIRECTION ARTISTIQUE & VISUELLE
+Si quelqu'un explore, hésite, parle de valeurs ou d'identité : accompagne-le en profondeur, prends le temps, creuse les nuances.
 
-"À partir de tout ce que tu m'as partagé, voyons comment ça pourrait se traduire visuellement."
+Tu changes de rythme et de registre au fil de la conversation si l'utilisateur évolue. Tu ne t'enfermes pas dans un mode.
 
-Tu demandes :
-- Le projet a-t-il déjà une identité visuelle ?
-- Logo, charte, couleurs, typographies existants ?
-- Quelles marques, artistes, univers inspirent ? Pourquoi ?
-- Quels styles ou codes doivent être évités ?
+---
 
-👉 Tu invites à partager :
-- Images de référence
-- Moodboards
-- Liens (sites, Instagram, artistes, marques)
-- Visuels existants
+🔍 RÉACTIVITÉ
 
-Tu analyses ces visuels et expliques ce qu'ils racontent.
+Avant de poser quoi que ce soit, lis attentivement tout ce que l'utilisateur a dit — y compris les chiffres, détails concrets, et informations pratiques (budget, deadline, type de livrable, secteur). Tout ce qui a été mentionné doit être intégré dans ta compréhension et ne doit jamais être ignoré ou redemandé.
 
-🎯 PHASE 4 — CIBLE & CONTEXTE
+Si la demande est opérationnelle — l'utilisateur sait ce qu'il veut, le contexte est clair — ne creuse pas l'intention ou les valeurs. Concentre-toi sur ce qui manque vraiment pour bien matcher : style/ton, format, deadline, profil exact du créatif. Ne pose que des questions dont la réponse n'est pas déjà dans ce qui a été dit.
 
-"Comprendre à qui le projet parle permet d'affiner énormément les choix créatifs."
+Quand un premier message est riche en informations, montre que tu as tout capté — naturellement, pas sous forme de liste — avant de poser ta question. L'utilisateur doit sentir que rien n'est passé à la trappe.
 
-Tu explores :
-- À qui s'adresse réellement le projet ?
-- Contexte culturel, social, géographique ?
-- Où sera-t-il vu ? (digital, print, espace, produit, événement)
-- Niveau d'exigence attendu du public ?
-- Réaction idéale à provoquer ?
+Si au contraire la demande est floue ou exploratoire, là tu peux aller en profondeur sur l'intention, l'identité, la direction créative.
 
-💰 PHASE 5 — BUDGET & DÉLAIS
+Chaque question que tu poses émerge de ce que l'utilisateur vient de dire — pas d'une liste. Si quelqu'un a déjà mentionné sa cible, tu construis dessus, tu ne la redemandes pas.
 
-"Pour que le matching soit juste et respectueux du travail créatif, on va aussi parler budget — l'idée n'est pas de te limiter, mais d'être alignés et réalistes."
+Si tu perçois une tension entre deux choses dites, tu l'exprimes avec curiosité et bienveillance, jamais comme une correction ou un reproche. Tu cherches à comprendre, pas à avoir raison.
 
-Tu explores :
-- Budget global envisagé pour la partie créative
-- Priorités budgétaires
-- Flexibilité du budget
-- Délais souhaités
+---
 
-Tu aides à comprendre les ordres de grandeur et ajuster si nécessaire.
+🚀 MATCHING
 
-🤝 PHASE 6 — PROFIL DU CRÉATIF IDÉAL
+Quand tu as une compréhension suffisante — sans avoir forcément tout couvert — tu proposes de lancer le matching. C'est toi qui juges du bon moment, selon la richesse de ce qui a été échangé.
 
-Synthèse globale, puis tu définis :
-- Type de créatif (DA, graphiste, photographe, designer...)
-- Approche (conceptuelle, technique, intuitive, expérimentale)
-- Niveau d'expérience
-- Sensibilité artistique
-- Capacité à travailler avec ce budget et ces contraintes
+En mode express, ça peut arriver après 4-5 échanges. En mode exploratoire, après un parcours plus riche.
 
-🎯 PHASE 7 — LANCEMENT DU MATCHING
+Quand tu proposes le matching, ajoute exactement \`[MATCHING_READY]\` à la toute fin de ton message, après ta phrase. Ce marqueur est invisible pour l'utilisateur — il sert uniquement à déclencher le bouton de matching dans l'interface.
 
-Quand tu as assez d'informations (après Phase 5 minimum), tu proposes :
-"Je pense qu'on a tout ce qu'il faut pour te matcher avec les meilleurs créatifs ! Je lance le matching ?"
+Si l'utilisateur répond à ta proposition par une question, un doute, ou continue simplement la conversation — tu reprends l'échange naturellement sans forcer. Tu ne remets \`[MATCHING_READY]\` que si tu as de nouvelles raisons de penser que le moment est venu, pas mécaniquement parce que tu l'avais déjà proposé.
 
-Une fois confirmé, tu génères un résumé final clair et structuré qui servira au matching.
+---
 
-📏 RÈGLES D'OR
+💡 POSTURE DE CONSULTANT, PAS D'INTERVIEWEUR
 
-- JAMAIS plus d'une question par message
-- 2-4 phrases maximum, comme une vraie conversation
-- Tutoiement pour créer de la proximité
-- Validation régulière de ta compréhension
-- Pas de suppositions gratuites
-- Chaque choix créatif doit avoir un sens
-- Réponds TOUJOURS en français`;
+Tu n'es pas là juste pour extraire des infos — tu es là pour construire avec. À chaque fois que tu comprends quelque chose, tu apportes ta propre lecture créative avant de creuser plus loin.
+
+Concrètement :
+- Tu partages des avis tranchés sur ce qui fonctionne ou pas pour ce type de projet
+- Tu proposes des directions, des références créatives, des angles inattendus
+- Tu utilises des formules comme "Ce que ça m'évoque...", "Je verrais bien...", "Dans ce secteur, ce qui marche vraiment...", "C'est une tension intéressante parce que..."
+- Tu ne restes pas dans le flou : si tu as une intuition créative forte, tu la partages — sans attendre qu'on te le demande
+- Si quelque chose dans ce qui est dit t'intrigue ou te plaît franchement, tu le dis
+
+Exemple : si quelqu'un mentionne "luxe accessible", tu ne te contentes pas de poser une question — tu réagis : "C'est une tension que beaucoup de marques ratent en essayant de plaire à tout le monde. Est-ce que tu te sens plus proche de l'élévation sobre à la Uniqlo, ou de la démocratisation assumée à la Sézane ?" Ça, c'est apporter quelque chose.
+
+---
+
+📏 RÈGLES ABSOLUES
+
+- Une seule question par message. Toujours.
+- 2-4 phrases max. Tu es dans une conversation, pas dans un rapport.
+- Tu réagis à ce qui est dit, tu ne récites pas une liste.
+- Visuels partagés → interprétation créative et précise, pas description neutre.
+- Ne répète jamais les mêmes formules d'une réponse à l'autre. Vary ta façon d'entrer dans chaque message, de reformuler, de relancer. Aucune phrase type. Aucun pattern récurrent.
+- Réponds TOUJOURS en français.`;
 
 
 /**
@@ -193,6 +171,29 @@ export async function generateGeminiResponse(
       }
       if (parts.length > 0) {
         contextInfo = `\n\nContexte du créateur:\n${parts.join('\n')}`;
+      }
+
+      // Inject cross-conversation memory (past projects)
+      if (creatorContext.pastProjects && creatorContext.pastProjects.length > 0) {
+        const name = creatorContext.companyName || 'ce créateur';
+        let memory = `\n\nMémoire — tu connais déjà ${name} (${creatorContext.pastProjects.length} projet${creatorContext.pastProjects.length > 1 ? 's' : ''} précédent${creatorContext.pastProjects.length > 1 ? 's' : ''}) :\n`;
+
+        creatorContext.pastProjects.forEach((p, i) => {
+          memory += `${i + 1}. "${p.title}"`;
+          if (p.status === 'IN_PROGRESS') memory += ' [en cours]';
+          if (p.status === 'ABANDONED') memory += ' [abandonné]';
+          if (p.summary) memory += ` — ${p.summary}`;
+          const details: string[] = [];
+          if (p.insights?.objective) details.push(p.insights.objective);
+          if (p.insights?.style && p.insights.style !== 'Non précisé') details.push(`style: ${p.insights.style}`);
+          if (p.insights?.target && p.insights.target !== 'Non précisé') details.push(`cible: ${p.insights.target}`);
+          if (p.insights?.budget && p.insights.budget !== 'Non précisé') details.push(`budget: ${p.insights.budget}`);
+          if (details.length > 0) memory += ` (${details.join(', ')})`;
+          memory += '\n';
+        });
+
+        memory += `\nTu peux faire référence à ces projets naturellement si c'est pertinent — noter des récurrences dans la façon de travailler, observer une évolution, éviter de redemander ce qui a déjà été vu. Ce n'est pas une obligation, juste une connaissance que tu as.`;
+        contextInfo += memory;
       }
     }
 
@@ -365,7 +366,8 @@ Réponds UNIQUEMENT avec le titre, sans guillemets, sans point final, sans texte
 }
 
 /**
- * Generate a project summary using Gemini
+ * Generate a rich editorial project brief from conversation history
+ * Returns a structured JSON with narrative sections for PDF export
  */
 export async function generateProjectSummary(
   conversationHistory: ConversationMessage[]
@@ -377,26 +379,43 @@ export async function generateProjectSummary(
   }
 
   const conversationText = conversationHistory
-    .map((msg) => `${msg.role === 'user' ? 'Créateur' : 'Assistant'}: ${msg.content}`)
+    .map((msg) => `${msg.role === 'user' ? 'Créateur' : 'JUNY'}: ${msg.content}`)
     .join('\n\n');
 
-  const prompt = `Voici une conversation entre un créateur et un assistant IA concernant un projet créatif.
+  const prompt = `Tu es un directeur artistique senior et consultant créatif. À partir de cette conversation de brief entre un créateur et l'IA JUNY, génère un brief de projet complet, professionnel et éditorialement soigné.
 
+CONVERSATION :
 ${conversationText}
 
-À partir de cette conversation, génère un résumé structuré du projet en JSON avec ce format:
+Génère un JSON strict (sans markdown, sans texte avant ou après) avec ce format exact :
+
 {
-  "titre": "Titre du projet",
-  "description": "Description courte du projet (2-3 phrases)",
-  "type": "Type de projet (ex: Logo, Site web, Vidéo...)",
-  "publicCible": "Le public visé",
-  "styleVisuel": "Le style souhaité",
-  "budget": "Le budget mentionné ou estimé",
-  "delai": "Les délais mentionnés",
-  "pointsCles": ["Point clé 1", "Point clé 2", "Point clé 3"]
+  "summary": "Résumé exécutif en 2-3 phrases percutantes qui captent l'essence du projet. Style éditorial, pas générique.",
+  "sections": {
+    "contextAndIntention": "2-3 paragraphes narratifs sur le contexte du projet, son origine, sa raison d'être profonde et l'intention derrière. Capture le 'pourquoi' avec précision et profondeur.",
+    "dnaAndValues": "Narration de l'identité, des valeurs fondamentales et de l'ADN du projet. Mots-clés de définition et d'exclusion. Exercices projectifs si mentionnés. Style éditorial, pas une liste sèche.",
+    "artisticDirection": "Description narrative de la direction artistique et visuelle souhaitée : ambiance, codes visuels, palette, typographie, références, univers inspirants et ce qui doit être évité. Intègre les visuels mentionnés ou partagés.",
+    "targetAndUsage": "Profil de la cible, contexte d'usage, canaux de diffusion, niveau d'exigence attendu et réaction idéale à provoquer.",
+    "budgetAndConstraints": "Budget, délais, contraintes spécifiques et priorités. Contextualise par rapport à la complexité du projet.",
+    "idealCreativeProfile": "Portrait précis du créatif idéal pour ce projet : type de professionnel, approche créative, sensibilité artistique, niveau d'expérience, style de travail. Explique pourquoi ce profil correspond au projet.",
+    "keywordsAndVision": "Vision synthétique du projet en 1 phrase forte et engagée."
+  },
+  "keywords": ["mot-clé1", "mot-clé2", "mot-clé3", "mot-clé4", "mot-clé5"],
+  "insights": {
+    "budget": {"value": "budget mentionné ou 'Non précisé'"},
+    "deadline": {"value": "délai mentionné ou 'Non précisé'"},
+    "style": {"value": "style principal en quelques mots"},
+    "target": {"value": "cible principale"},
+    "objective": {"value": "objectif principal du projet"}
+  }
 }
 
-Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
+Règles absolues :
+- Chaque section doit être une narration engagée et précise, pas une liste à puces
+- Style professionnel mais accessible, jamais générique ou creux
+- Capture fidèlement ce qui a été dit dans la conversation — ne fabrique rien
+- Si une information n'a pas été abordée, indique-le avec élégance ("aspect à préciser avec le créatif")
+- Le brief doit donner envie à un professionnel de prendre le projet`;
 
   try {
     const requestBody = {
@@ -407,8 +426,8 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
         },
       ],
       generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 1024,
+        temperature: 0.4,
+        maxOutputTokens: 3000,
       },
     };
 
@@ -416,9 +435,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       }
     );
@@ -434,7 +451,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
 
     return { text: text || '' };
   } catch (error) {
-    console.error('Gemini summary error:', error);
+    console.error('Gemini brief generation error:', error);
     return { text: '', error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
@@ -471,25 +488,11 @@ export async function analyzeImagesWithVision(
   visualReferences: string[];
   creativeDirection: string;
 }> {
-  // TODO: Implement Gemini Vision API call
-  // For now, return placeholder data
-  console.log('⚠️ Vision analysis not yet implemented. Using placeholder data.');
-  console.log(`📸 Would analyze ${attachments.length} image(s)`);
-
-  return {
-    dominantColors: [],
-    detectedStyles: [],
-    mood: null,
-    complexity: null,
-    visualReferences: [],
-    creativeDirection: 'Visual analysis will be available when Gemini Vision is integrated',
-  };
-
-  /* FUTURE IMPLEMENTATION:
-
   const apiKey = process.env.GEMINI_API_KEY;
+
   if (!apiKey) {
-    throw new Error('Gemini API key not configured');
+    console.warn('⚠️ Gemini API key not configured — skipping vision analysis.');
+    return { dominantColors: [], detectedStyles: [], mood: null, complexity: null, visualReferences: [], creativeDirection: '' };
   }
 
   // Filter only images
@@ -498,75 +501,80 @@ export async function analyzeImagesWithVision(
     return { dominantColors: [], detectedStyles: [], mood: null, complexity: null, visualReferences: [], creativeDirection: '' };
   }
 
-  // Prepare images for Vision API
-  const imageParts = await Promise.all(
-    images.map(async (img) => {
-      // Fetch image from Cloudinary
-      const response = await fetch(img.url);
-      const buffer = await response.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString('base64');
+  try {
+    // Download images and convert to base64 for Gemini Vision
+    const imageParts = await Promise.all(
+      images.map(async (img) => {
+        const response = await fetch(img.url);
+        const buffer = await response.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        // Gemini supports jpeg, png, webp, heic, heif
+        const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
+        const mimeType = mimeMap[img.format.toLowerCase()] || 'image/jpeg';
+        return { inlineData: { mimeType, data: base64 } };
+      })
+    );
 
-      return {
-        inlineData: {
-          mimeType: `image/${img.format}`,
-          data: base64
-        }
-      };
-    })
-  );
+    const prompt = `Tu es un expert en direction artistique et en analyse visuelle pour des projets créatifs.
 
-  const prompt = `Analyse ces images de référence pour un projet créatif. Fournis une analyse détaillée en JSON avec:
+Analyse ${images.length > 1 ? 'ces ' + images.length + ' images' : 'cette image'} de référence partagées par un créateur pour son projet.
 
-  {
-    "dominantColors": ["couleur1", "couleur2", ...],
-    "detectedStyles": ["style1", "style2", ...],
-    "mood": "description de l'ambiance",
-    "complexity": "simple" | "moderate" | "complex",
-    "visualReferences": ["référence1", "référence2", ...],
-    "creativeDirection": "description de la direction artistique suggérée"
-  }
+Fournis une analyse précise et créativement pertinente en JSON strict (sans markdown) :
 
-  Sois précis et professionnel. Focus sur des insights actionnables pour le matching avec des créatifs.`;
+{
+  "dominantColors": ["couleur1 (descriptif, ex: 'beige chaud', 'bleu nuit profond')", "couleur2", ...],
+  "detectedStyles": ["style1 (ex: 'minimalisme scandinave', 'baroque contemporain', 'streetwear urbain')", ...],
+  "mood": "description de l'ambiance et de l'émotion dégagée (2-3 phrases narratives)",
+  "complexity": "simple" ou "moderate" ou "complex",
+  "visualReferences": ["référence culturelle ou artistique évoquée (marque, artiste, mouvement, époque)", ...],
+  "creativeDirection": "interprétation créative de la direction artistique suggérée par ces visuels (3-5 phrases, style éditorial)"
+}
 
-  const requestBody = {
-    contents: [
+Sois précis, professionnel et créativement pertinent. Focus sur des insights directement exploitables pour matcher avec le bon créatif.`;
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            ...imageParts,
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 1024,
+      },
+    };
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
-        parts: [
-          { text: prompt },
-          ...imageParts
-        ]
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
       }
-    ],
-    generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: 1024,
+    );
+
+    if (!response.ok) {
+      console.error('Vision API error:', response.status, await response.text());
+      return { dominantColors: [], detectedStyles: [], mood: null, complexity: null, visualReferences: [], creativeDirection: '' };
     }
-  };
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+    const data = (await response.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
     }
-  );
 
-  if (!response.ok) {
-    throw new Error(`Vision API error: ${response.status}`);
+    console.warn('Vision API: could not parse JSON response');
+    return { dominantColors: [], detectedStyles: [], mood: null, complexity: null, visualReferences: [], creativeDirection: '' };
+  } catch (error) {
+    console.error('Vision analysis error:', error);
+    return { dominantColors: [], detectedStyles: [], mood: null, complexity: null, visualReferences: [], creativeDirection: '' };
   }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  // Parse JSON response
-  const analysisMatch = text.match(/\{[\s\S]*\}/);
-  if (analysisMatch) {
-    return JSON.parse(analysisMatch[0]);
-  }
-
-  throw new Error('Failed to parse Vision API response');
-  */
 }
 
 /**

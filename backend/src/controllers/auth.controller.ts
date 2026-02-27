@@ -228,6 +228,44 @@ export class AuthController {
     }
   }
 
+  // POST /api/auth/forgot-password
+  async forgotPassword(req: Request, res: Response) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ success: false, message: 'Email manquant' });
+      }
+
+      const result = await authService.forgotPassword(email);
+
+      res.status(200).json({ success: true, message: result.message });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Erreur serveur' });
+    }
+  }
+
+  // POST /api/auth/reset-password
+  async resetPassword(req: Request, res: Response) {
+    try {
+      const { token, password } = req.body;
+
+      if (!token || !password) {
+        return res.status(400).json({ success: false, message: 'Token ou mot de passe manquant' });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 8 caractères' });
+      }
+
+      const result = await authService.resetPassword(token, password);
+
+      res.status(200).json({ success: true, message: result.message });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message || 'Erreur lors de la réinitialisation' });
+    }
+  }
+
   // GET /api/auth/google/callback
   async googleCallback(req: Request, res: Response) {
     try {

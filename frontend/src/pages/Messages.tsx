@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { matchingApi } from '../services/api';
 import CreatorLayout from '../components/CreatorLayout';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useScrollAnimation } from '../hooks/useScrollAnimation';
 
 interface Professional {
   id: string;
@@ -60,13 +61,18 @@ export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const headerAnim = useScrollAnimation([loading]);
+  const chatAnim = useScrollAnimation([loading]);
+
   useEffect(() => {
     if (!token) {
       navigate('/login');
       return;
     }
-    if (user?.role !== 'CREATOR') {
-      navigate('/dashboard');
+    if (user?.role === 'PROFESSIONAL') {
+      // Redirect pro to their profile with messages tab pre-selected
+      localStorage.setItem('professional-active-tab', 'messages');
+      navigate('/profile/professional');
       return;
     }
     fetchConversations();
@@ -217,7 +223,10 @@ export default function Messages() {
     <CreatorLayout>
       <div className="h-[calc(100vh-140px)] flex flex-col">
         {/* Header */}
-        <div className="mb-6">
+        <div
+          ref={headerAnim.ref}
+          className={`mb-6 transition-[opacity,transform] duration-700 ${headerAnim.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
+        >
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <svg className="w-8 h-8 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -233,7 +242,10 @@ export default function Messages() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex">
+        <div
+          ref={chatAnim.ref}
+          className={`flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex transition-[opacity,transform] duration-700 delay-150 ${chatAnim.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
+        >
           {/* Conversations List */}
           <div className="w-96 border-r border-gray-100 flex flex-col">
             {/* Search */}
@@ -269,13 +281,14 @@ export default function Messages() {
                   )}
                 </div>
               ) : (
-                filteredConversations.map((conv) => (
+                filteredConversations.map((conv, idx) => (
                   <button
                     key={conv.id}
                     onClick={() => selectConversation(conv)}
-                    className={`w-full p-4 flex gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 text-left ${
+                    className={`w-full p-4 flex gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 text-left animate-in slide-in-from-left-2 fade-in duration-300 ${
                       selectedConversation?.id === conv.id ? 'bg-primary-50 border-l-4 border-l-primary-500' : ''
                     }`}
+                    style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
@@ -322,7 +335,7 @@ export default function Messages() {
             {selectedConversation ? (
               <>
                 {/* Chat Header */}
-                <div className="p-4 border-b border-gray-100 flex items-center gap-4">
+                <div className="p-4 border-b border-gray-100 flex items-center gap-4 animate-in slide-in-from-top-2 fade-in duration-300">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold">
                     {selectedConversation.professional.firstName[0]}{selectedConversation.professional.lastName[0]}
                   </div>
@@ -379,7 +392,7 @@ export default function Messages() {
                           return (
                             <div
                               key={msg.id}
-                              className={`flex mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}
+                              className={`flex mb-3 animate-in fade-in duration-200 ${isMe ? 'justify-end slide-in-from-right-2' : 'justify-start slide-in-from-left-2'}`}
                             >
                               <div
                                 className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${

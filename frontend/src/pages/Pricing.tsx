@@ -23,26 +23,29 @@ export default function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const { user, token } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Load plans from API
+  // Load plans + current subscription
   useEffect(() => {
-    const loadPlans = async () => {
+    const loadData = async () => {
       try {
-        const response = await subscriptionApi.getPlans();
-        if (response.success) {
-          setPlans(response.data);
-        }
+        const [plansRes, subRes] = await Promise.all([
+          subscriptionApi.getPlans(),
+          token ? subscriptionApi.getCurrent().catch(() => null) : Promise.resolve(null),
+        ]);
+        if (plansRes.success) setPlans(plansRes.data);
+        if (subRes?.success) setCurrentSubscription(subRes.data);
       } catch (error) {
         console.error('Error loading plans:', error);
       } finally {
         setLoading(false);
       }
     };
-    loadPlans();
-  }, []);
+    loadData();
+  }, [token]);
 
   // Show message if subscription was cancelled
   useEffect(() => {
@@ -82,19 +85,27 @@ export default function Pricing() {
 
     setCheckoutLoading(planId);
     try {
-      const response = await subscriptionApi.createCheckout({
-        planId,
-        billingCycle,
-      });
+      // User already has a paid plan → upgrade flow (no redirect, direct Stripe update)
+      if (currentSubscription && !currentSubscription.isFreeTier) {
+        const response = await subscriptionApi.upgradeSubscription({ planId, billingCycle });
+        if (response.success) {
+          navigate('/settings?subscription=success');
+        } else {
+          alert(response.message || 'Erreur lors de la mise à niveau');
+        }
+        return;
+      }
 
+      // Fresh subscription → Stripe Checkout redirect
+      const response = await subscriptionApi.createCheckout({ planId, billingCycle });
       if (response.success && response.data.url) {
         window.location.href = response.data.url;
       } else {
         alert(response.message || 'Erreur lors de la création du paiement');
       }
     } catch (error: any) {
-      console.error('Checkout error:', error);
-      alert(error.response?.data?.message || 'Erreur lors de la création du paiement');
+      console.error('Subscribe error:', error);
+      alert(error.response?.data?.message || 'Erreur lors du traitement');
     } finally {
       setCheckoutLoading(null);
     }
@@ -382,23 +393,37 @@ export default function Pricing() {
                     ))}
                   </ul>
 
-                  <button
-                    onClick={() => handleSubscribe(plan.id)}
-                    disabled={checkoutLoading === plan.id}
-                    className={`block w-full text-center px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r ${colors.button} text-white rounded-lg font-semibold text-sm sm:text-base transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {checkoutLoading === plan.id ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Chargement...
-                      </span>
-                    ) : (
-                      `Choisir ${plan.name}`
-                    )}
-                  </button>
+                  {(() => {
+                    const isCurrentPlan = currentSubscription && !currentSubscription.isFreeTier && currentSubscription.plan?.id === plan.id;
+                    const isUpgrade = currentSubscription && !currentSubscription.isFreeTier && currentSubscription.plan?.id !== plan.id;
+                    return (
+                      <button
+                        onClick={() => !isCurrentPlan && handleSubscribe(plan.id)}
+                        disabled={checkoutLoading === plan.id || isCurrentPlan}
+                        className={`block w-full text-center px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-300 shadow-md disabled:cursor-not-allowed ${
+                          isCurrentPlan
+                            ? 'bg-gray-100 text-gray-500 cursor-default shadow-none'
+                            : `bg-gradient-to-r ${colors.button} text-white hover:shadow-lg hover:scale-105 disabled:opacity-50`
+                        }`}
+                      >
+                        {checkoutLoading === plan.id ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Traitement...
+                          </span>
+                        ) : isCurrentPlan ? (
+                          '✓ Plan actif'
+                        ) : isUpgrade ? (
+                          `Passer à ${plan.name}`
+                        ) : (
+                          `Choisir ${plan.name}`
+                        )}
+                      </button>
+                    );
+                  })()}
                 </div>
               );
             })}
