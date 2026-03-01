@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /dashboard/
+Disallow: /settings
+Disallow: /settings/
+Disallow: /messages
+Disallow: /messages/
+Disallow: /notifications
+Disallow: /notifications/
+Disallow: /brainstorming
+Disallow: /brainstorming/
+Disallow: /projects
+Disallow: /projects/
+Disallow: /profile
+Disallow: /profile/
+Disallow: /professional/
+Disallow: /reset-password
+Disallow: /api/
+
+Sitemap: https://junyia.fr/sitemap.xml
