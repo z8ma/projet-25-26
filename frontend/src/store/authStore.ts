@@ -4,7 +4,7 @@ import { authApi } from '../services/api';
 interface User {
   id: string;
   email: string;
-  role: 'CREATOR' | 'PROFESSIONAL';
+  role: 'CREATOR' | 'PROFESSIONAL' | 'ADMIN';
   emailVerified?: boolean;
   googleId?: string | null;
   createdAt?: string;
@@ -31,7 +31,7 @@ interface AuthState {
   register: (data: {
     email: string;
     password: string;
-    role: 'CREATOR' | 'PROFESSIONAL';
+    role: 'CREATOR' | 'PROFESSIONAL' | 'ADMIN';
     companyName?: string;
     firstName?: string;
     lastName?: string;
