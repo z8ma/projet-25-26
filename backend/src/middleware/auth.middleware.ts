@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service.js';
+import { prisma } from '../config/prisma.js';
 
 // Extend Express Request type to include userId
 declare global {
@@ -40,5 +41,24 @@ export const authMiddleware = async (
       success: false,
       message: error.message || 'Token invalide',
     });
+  }
+};
+
+export const adminMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ success: false, message: 'Non authentifié' });
+    }
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user || user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Accès refusé' });
+    }
+    next();
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };

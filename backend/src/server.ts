@@ -16,6 +16,7 @@ import favoritesRoutes from './routes/favorites.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import calendarRoutes from './routes/calendar.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 import { configurePassport } from './config/passport.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,6 +67,7 @@ app.use('/api/favorites', favoritesRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

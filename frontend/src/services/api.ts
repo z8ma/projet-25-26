@@ -638,3 +638,10 @@ export const calendarApi = {
     return response.data;
   },
 };
+
+export const adminApi = {
+  getStats: async () => {
+    const response = await api.get('/api/admin/stats');
+    return response.data;
+  },
+};

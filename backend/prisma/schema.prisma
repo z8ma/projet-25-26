@@ -46,6 +46,7 @@ model User {
 enum UserRole {
   CREATOR
   PROFESSIONAL
+  ADMIN
 
   @@map("user_role")
 }

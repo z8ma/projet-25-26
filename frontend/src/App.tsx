@@ -29,6 +29,7 @@ import Contact from './pages/Contact';
 import Blog from './pages/Blog';
 import Help from './pages/Help';
 import NotFound from './pages/NotFound';
+import AdminDashboard from './pages/AdminDashboard';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -78,6 +79,7 @@ function App() {
           <Route path="/favorites" element={<SavedProfessionals />} />
           <Route path="/explore" element={<ExploreProfessionals />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/pro/:id" element={<PublicProfessionalProfile />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
