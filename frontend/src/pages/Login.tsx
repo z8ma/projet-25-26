@@ -27,7 +27,8 @@ export default function Login() {
       if (response.data.success) {
         const { token, user } = response.data.data;
         setAuth(token, user);
-        navigate('/dashboard');
+        if (user.role === 'ADMIN') navigate('/admin');
+        else navigate('/dashboard');
       } else {
         setError(response.data.message || 'Erreur lors de la connexion');
       }
