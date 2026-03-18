@@ -31,7 +31,7 @@ interface AuthState {
   register: (data: {
     email: string;
     password: string;
-    role: 'CREATOR' | 'PROFESSIONAL' | 'ADMIN';
+    role: 'CREATOR' | 'PROFESSIONAL';
     companyName?: string;
     firstName?: string;
     lastName?: string;
