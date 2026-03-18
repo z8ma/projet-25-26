@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service.js';
-import { prisma } from '../config/prisma.js';
+import prisma from '../config/prisma.js';
 
 // Extend Express Request type to include userId
 declare global {

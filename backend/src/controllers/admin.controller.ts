@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../config/prisma.js';
+import prisma from '../config/prisma.js';
 
 export const adminController = {
 
@@ -71,8 +71,8 @@ export const adminController = {
         select: { id: true, name: true },
       });
 
-      const subscriptionsWithNames = subscriptionsByPlan.map(s => ({
-        plan: planDetails.find(p => p.id === s.planId)?.name || 'Inconnu',
+      const subscriptionsWithNames = subscriptionsByPlan.map((s: { planId: string; _count: number }) => ({
+        plan: planDetails.find((p: { id: string; name: string }) => p.id === s.planId)?.name || 'Inconnu',
         count: s._count,
       }));
 
@@ -122,8 +122,8 @@ export const adminController = {
         select: { id: true, name: true },
       });
 
-      const topProfessionsWithNames = topProfessions.map(p => ({
-        name: professionDetails.find(d => d.id === p.professionId)?.name || 'Inconnu',
+      const topProfessionsWithNames = topProfessions.map((p: { professionId: string; _count: number }) => ({
+        name: professionDetails.find((d: { id: string; name: string }) => d.id === p.professionId)?.name || 'Inconnu',
         count: p._count,
       }));
 
@@ -137,7 +137,7 @@ export const adminController = {
 
       // Regrouper par date (jour)
       const dailyRegistrations: Record<string, number> = {};
-      registrationsByDay.forEach(r => {
+      registrationsByDay.forEach((r: { createdAt: Date; _count: number }) => {
         const day = r.createdAt.toISOString().split('T')[0];
         dailyRegistrations[day] = (dailyRegistrations[day] || 0) + r._count;
       });
@@ -179,7 +179,7 @@ export const adminController = {
             byPlan: subscriptionsWithNames,
           },
           recentUsers,
-          topProfessionals: topProfessionals.map(p => ({
+          topProfessionals: topProfessionals.map((p: any) => ({
             name: `${p.firstName} ${p.lastName}`,
             rating: p.averageRating,
             totalRatings: p.totalRatings,
