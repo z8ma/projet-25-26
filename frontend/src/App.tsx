@@ -58,11 +58,11 @@ function App() {
         <ScrollToTop />
         <EmailVerificationBanner />
         <Routes>
-          <Route path="/" element={(token && user) ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+          <Route path="/" element={(token && user) ? <Navigate to={user.role === 'ADMIN' ? '/admin' : '/dashboard'} replace /> : <LandingPage />} />
           <Route path="/professionnels" element={<ProfessionalLanding />} />
           <Route path="/pricing" element={<Pricing />} />
-          <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" replace />} />
-          <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={!user ? <Login /> : <Navigate to={user.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />} />
+          <Route path="/register" element={!user ? <Register /> : <Navigate to={user.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
