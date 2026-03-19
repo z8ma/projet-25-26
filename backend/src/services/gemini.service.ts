@@ -205,16 +205,10 @@ export async function generateGeminiResponse(
 
     // Use Gemini API via REST (simpler than SDK, no additional dependencies)
     const requestBody = {
+      systemInstruction: {
+        parts: [{ text: `${SYSTEM_PROMPT}${contextInfo}` }],
+      },
       contents: [
-        // System instruction as first user message (Gemini doesn't have system role)
-        {
-          role: 'user',
-          parts: [{ text: `Instructions système: ${SYSTEM_PROMPT}${contextInfo}\n\nRéponds "Compris" si tu as bien compris.` }],
-        },
-        {
-          role: 'model',
-          parts: [{ text: 'Compris! Je suis prêt à aider ce créateur avec son projet.' }],
-        },
         // Add conversation history
         ...geminiHistory,
         // Add current user message
@@ -224,7 +218,7 @@ export async function generateGeminiResponse(
         },
       ],
       generationConfig: {
-        temperature: 0.8,
+        temperature: 0.7,
         topK: 40,
         topP: 0.95,
         maxOutputTokens: 2048,
@@ -250,7 +244,7 @@ export async function generateGeminiResponse(
     };
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -334,7 +328,7 @@ Réponds UNIQUEMENT avec le titre, sans guillemets, sans point final, sans texte
     };
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -432,7 +426,7 @@ Règles absolues :
     };
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -548,7 +542,7 @@ Sois précis, professionnel et créativement pertinent. Focus sur des insights d
     };
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -603,7 +597,7 @@ export class GeminiService {
       };
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: {
