@@ -19,6 +19,7 @@ export const adminController = {
         newUsersThisWeek,
         newUsersThisMonth,
         verifiedUsers,
+        unverifiedUsers,
       ] = await Promise.all([
         prisma.user.count(),
         prisma.user.count({ where: { role: 'CREATOR' } }),
@@ -26,6 +27,7 @@ export const adminController = {
         prisma.user.count({ where: { createdAt: { gte: startOfWeek } } }),
         prisma.user.count({ where: { createdAt: { gte: startOfMonth } } }),
         prisma.user.count({ where: { emailVerified: true } }),
+        prisma.user.count({ where: { emailVerified: false } }),
       ]);
 
       // ── Activité ──────────────────────────────────────────────
@@ -53,12 +55,10 @@ export const adminController = {
         prisma.profileView.count({ where: { viewedAt: { gte: startOfWeek } } }),
       ]);
 
-      // ── Abonnements ───────────────────────────────────────────
-      const [
-        activeSubscriptions,
-        subscriptionsByPlan,
-      ] = await Promise.all([
+      // ── Abonnements & Revenus ─────────────────────────────────
+      const [activeSubscriptions, expiredSubscriptions, subscriptionsByPlan] = await Promise.all([
         prisma.subscription.count({ where: { status: 'ACTIVE' } }),
+        prisma.subscription.count({ where: { status: 'EXPIRED' } }),
         prisma.subscription.groupBy({
           by: ['planId'],
           where: { status: 'ACTIVE' },
@@ -67,19 +67,50 @@ export const adminController = {
       ]);
 
       const planDetails = await prisma.subscriptionPlan.findMany({
-        where: { id: { in: subscriptionsByPlan.map(s => s.planId) } },
-        select: { id: true, name: true },
+        where: { id: { in: subscriptionsByPlan.map((s: any) => s.planId) } },
+        select: { id: true, name: true, priceMonthly: true },
       });
 
-      const subscriptionsWithNames = subscriptionsByPlan.map((s: { planId: string; _count: number }) => ({
-        plan: planDetails.find((p: { id: string; name: string }) => p.id === s.planId)?.name || 'Inconnu',
-        count: s._count,
-      }));
+      const subscriptionsWithNames = subscriptionsByPlan.map((s: { planId: string; _count: number }) => {
+        const plan = planDetails.find((p: { id: string; name: string; priceMonthly: any }) => p.id === s.planId);
+        return {
+          plan: plan?.name || 'Inconnu',
+          count: s._count,
+          priceMonthly: plan?.priceMonthly ? Number(plan.priceMonthly) : 0,
+        };
+      });
+
+      // Revenus mensuels estimés
+      const estimatedMonthlyRevenue = subscriptionsWithNames.reduce(
+        (total: number, s: { plan: string; count: number; priceMonthly: number }) => total + s.count * s.priceMonthly,
+        0
+      );
+
+      // ── Alertes ───────────────────────────────────────────────
+      const alerts = [];
+      if (unverifiedUsers > 0) {
+        alerts.push({
+          type: 'warning',
+          message: `${unverifiedUsers} compte${unverifiedUsers > 1 ? 's' : ''} sans email vérifié`,
+        });
+      }
+      if (expiredSubscriptions > 0) {
+        alerts.push({
+          type: 'warning',
+          message: `${expiredSubscriptions} abonnement${expiredSubscriptions > 1 ? 's' : ''} expiré${expiredSubscriptions > 1 ? 's' : ''} non renouvelé${expiredSubscriptions > 1 ? 's' : ''}`,
+        });
+      }
+      if (newUsersThisWeek === 0) {
+        alerts.push({
+          type: 'info',
+          message: 'Aucune nouvelle inscription cette semaine',
+        });
+      }
 
       // ── Derniers inscrits ─────────────────────────────────────
       const recentUsers = await prisma.user.findMany({
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 20,
         select: {
           id: true,
           email: true,
@@ -118,7 +149,7 @@ export const adminController = {
       });
 
       const professionDetails = await prisma.profession.findMany({
-        where: { id: { in: topProfessions.map(p => p.professionId) } },
+        where: { id: { in: topProfessions.map((p: any) => p.professionId) } },
         select: { id: true, name: true },
       });
 
@@ -127,7 +158,7 @@ export const adminController = {
         count: p._count,
       }));
 
-      // ── Inscriptions par jour (30 derniers jours) ─────────────
+      // ── Inscriptions par jour (14 derniers jours) ─────────────
       const registrationsByDay = await prisma.user.groupBy({
         by: ['createdAt'],
         where: { createdAt: { gte: startOfMonth } },
@@ -135,7 +166,6 @@ export const adminController = {
         orderBy: { createdAt: 'asc' },
       });
 
-      // Regrouper par date (jour)
       const dailyRegistrations: Record<string, number> = {};
       registrationsByDay.forEach((r: { createdAt: Date; _count: number }) => {
         const day = r.createdAt.toISOString().split('T')[0];
@@ -152,32 +182,21 @@ export const adminController = {
             newThisWeek: newUsersThisWeek,
             newThisMonth: newUsersThisMonth,
             verifiedRate: totalUsers > 0 ? Math.round((verifiedUsers / totalUsers) * 100) : 0,
+            unverified: unverifiedUsers,
           },
           activity: {
-            matches: {
-              total: totalMatches,
-              accepted: matchesAccepted,
-              declined: matchesDeclined,
-              inProgress: matchesInProgress,
-            },
-            conversations: {
-              total: totalConversations,
-              completed: conversationsCompleted,
-              completionRate: totalConversations > 0 ? Math.round((conversationsCompleted / totalConversations) * 100) : 0,
-            },
-            messages: {
-              total: totalMessages,
-              unread: unreadMessages,
-            },
-            profileViews: {
-              total: totalProfileViews,
-              thisWeek: profileViewsThisWeek,
-            },
+            matches: { total: totalMatches, accepted: matchesAccepted, declined: matchesDeclined, inProgress: matchesInProgress },
+            conversations: { total: totalConversations, completed: conversationsCompleted, completionRate: totalConversations > 0 ? Math.round((conversationsCompleted / totalConversations) * 100) : 0 },
+            messages: { total: totalMessages, unread: unreadMessages },
+            profileViews: { total: totalProfileViews, thisWeek: profileViewsThisWeek },
           },
           subscriptions: {
             active: activeSubscriptions,
+            expired: expiredSubscriptions,
             byPlan: subscriptionsWithNames,
+            estimatedMonthlyRevenue,
           },
+          alerts,
           recentUsers,
           topProfessionals: topProfessionals.map((p: any) => ({
             name: `${p.firstName} ${p.lastName}`,
