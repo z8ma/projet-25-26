@@ -54,6 +54,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) navigate('/login');
     if (user?.role === 'PROFESSIONAL') navigate('/profile/professional');
+    if (user?.role === 'ADMIN') navigate('/admin');
   }, [user, navigate]);
 
   useEffect(() => {
