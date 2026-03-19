@@ -135,9 +135,7 @@ export default function AdminDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">🛡️ Administration JUNY</h1>
             <p className="text-sm text-gray-400 mt-0.5">Vue d'ensemble de la plateforme</p>
           </div>
-          <button onClick={() => navigate('/dashboard')} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
-            ← Retour
-          </button>
+
         </div>
       </div>
 
